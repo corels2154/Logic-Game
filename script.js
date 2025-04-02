@@ -311,6 +311,35 @@ function updateStats() {
   document.getElementById('total-favorites').textContent = userFavorites.length;
 }
 
+function translateSuit(suit) {
+  const suits = {
+      'HEARTS': 'Corazones',
+      'DIAMONDS': 'Diamantes',
+      'CLUBS': 'Tréboles',
+      'SPADES': 'Picas'
+  };
+  return suits[suit] || suit;
+}
+
+function translateValue(value) {
+  const values = {
+      'ACE': 'As',
+      'KING': 'Rey',
+      'QUEEN': 'Reina',
+      'JACK': 'Jota',
+      '10': '10',
+      '9': '9',
+      '8': '8',
+      '7': '7',
+      '6': '6',
+      '5': '5',
+      '4': '4',
+      '3': '3',
+      '2': '2'
+  };
+  return values[value] || value;
+}
+
 // ======================
 // INICIALIZACIÓN
 // ======================
@@ -361,3 +390,143 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const password = e.target.password.value;
   await loginUser(email, password);
 });
+
+// Variables globales
+let currentDeckId = 'new';
+let remainingCards = 52;
+let userFavorites = [];
+let currentCard = null;
+
+// Inicialización al cargar la página
+document.addEventListener('DOMContentLoaded', async () => {
+    // Ocultar splash screen después de 2 segundos
+    setTimeout(() => {
+        document.getElementById('splash').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+    }, 2000);
+
+    // Iniciar sesión anónima en Firebase
+    try {
+        await firebaseAuth.signInAnonymously();
+        console.log("Autenticación anónima exitosa");
+        await loadFavorites();
+    } catch (error) {
+        console.error("Error en autenticación:", error);
+    }
+
+    // Inicializar baraja
+    await shuffleDeck();
+});
+
+// ======================
+// Funciones de la API Deck of Cards
+// ======================
+async function shuffleDeck() {
+    try {
+        const response = await fetch(`https://deckofcardsapi.com/api/deck/new/shuffle/`);
+        const data = await response.json();
+        currentDeckId = data.deck_id;
+        remainingCards = data.remaining;
+        updateDeckInfo();
+        return data;
+    } catch (error) {
+        console.error("Error al barajar:", error);
+    }
+}
+
+async function drawCard() {
+    if (remainingCards <= 0) {
+        alert("¡Mazo vacío! Barajeando nuevo mazo...");
+        await shuffleDeck();
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=1`);
+        const data = await response.json();
+        
+        if (data.success) {
+            remainingCards = data.remaining;
+            currentCard = data.cards[0];
+            displayCard(currentCard);
+            updateDeckInfo();
+            return currentCard;
+        }
+    } catch (error) {
+        console.error("Error al robar carta:", error);
+    }
+}
+
+function displayCard(card) {
+    const cardDisplay = document.getElementById('card-display');
+    cardDisplay.innerHTML = `
+        <img src="${card.image}" alt="${card.value} of ${card.suit}" class="card-image">
+        <div class="card-details">
+            <h3>${translateValue(card.value)} de ${translateSuit(card.suit)}</h3>
+            <button onclick="saveFavorite()" class="save-btn">
+                <i class="fas fa-heart"></i> Guardar
+            </button>
+        </div>
+    `;
+}
+
+// ======================
+// Funciones de Firebase
+// ======================
+async function saveFavorite() {
+    if (!currentCard) return;
+
+    try {
+        await firebaseDb.collection("favorites").add({
+            code: currentCard.code,
+            value: currentCard.value,
+            suit: currentCard.suit,
+            image: currentCard.image,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("¡Carta guardada en favoritos!");
+        await loadFavorites();
+    } catch (error) {
+        console.error("Error al guardar favorito:", error);
+    }
+}
+
+async function loadFavorites() {
+    try {
+        const snapshot = await firebaseDb.collection("favorites")
+            .orderBy("timestamp", "desc")
+            .get();
+        
+            userFavorites = [];
+            const favoritesList = document.getElementById('favorites-list');
+            favoritesList.innerHTML = ''; // Limpiar la lista antes de agregar nuevos elementos
+            
+            snapshot.forEach(doc => {
+                const card = doc.data();
+                userFavorites.push({ 
+                    id: doc.id, 
+                    code: card.code,
+                    value: card.value,
+                    suit: card.suit,
+                    image: card.image,
+                    timestamp: card.timestamp?.toDate() || new Date()
+                });
+                
+                // Crear elemento HTML para cada carta favorita
+                const favoriteItem = document.createElement('div');
+                favoriteItem.className = 'favorite-item';
+                favoriteItem.innerHTML = `
+                    <img src="${card.image}" alt="${card.value} of ${card.suit}" class="favorite-img">
+                    <div class="favorite-info">
+                        <span>${translateValue(card.value)} de ${translateSuit(card.suit)}</span>
+                        <button onclick="deleteFavorite('${doc.id}')" class="delete-btn">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                `;
+                
+                favoritesList.appendChild(favoriteItem);
+            });
+            
+            // Actualizar contador de favoritos
+            document.getElementById('favorites-count').textContent = userFavorites.length;
