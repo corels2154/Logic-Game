@@ -11,8 +11,8 @@ const firebaseConfig = {
   
   
   // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore(app);
+  const app = initializeApp(firebaseConfig);
+</script>
 </script>
 // Conexión con Deck of Cards API
 const deckId = "new"; // Genera una nueva baraja
