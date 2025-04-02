@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Cartas Educativo</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+</head>
+<body>
+    <div class="splash-screen" id="splash">
+        <h1>Juego de Cartas</h1>
+    </div>
+    
+    <header>
+        <h1>Aprende Matemáticas y Lógica</h1>
+        <input type="text" id="search" placeholder="Buscar carta..." oninput="filterCards()">
+    </header>
+    
+    <nav>
+        <button class="tab" onclick="showTab('juego')">Jugar</button>
+        <button class="tab" onclick="showTab('favoritos')">Favoritos</button>
+        <button class="tab" onclick="showTab('perfil')">Perfil</button>
+        <button class="tab" onclick="showTab('ajustes')">Ajustes</button>
+    </nav>
+    
+    <main>
+        <section id="juego" class="tab-content">
+            <button onclick="drawCard()">Robar Carta</button>
+            <div id="card-display"></div>
+        </section>
+        
+        <section id="favoritos" class="tab-content">
+            <h2>Cartas Favoritas</h2>
+            <div id="favorites-list"></div>
+        </section>
+        
+        <section id="perfil" class="tab-content">
+            <h2>Mi Perfil</h2>
+            <form id="profile-form" onsubmit="saveProfile(event)">
+                <input type="text" id="name" placeholder="Nombre" required>
+                <input type="email" id="email" placeholder="Correo" required>
+                <button type="submit">Guardar</button>
+            </form>
+        </section>
+        
+        <section id="ajustes" class="tab-content">
+            <h2>Configuraciones</h2>
+            <p>Ajustes del juego</p>
+        </section>
+    </main>
+</body>
+</html>
