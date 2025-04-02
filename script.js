@@ -22,6 +22,7 @@ import {
   limit 
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
+const firebaseConfig = {
     apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
     authDomain: "logic-game-2bec1.firebaseapp.com",
     projectId: "logic-game-2bec1",
@@ -33,8 +34,8 @@ import {
   
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
 // Conexión con Deck of Cards API
 const deckId = "new"; // Genera una nueva baraja
