@@ -1,6 +1,27 @@
-<script type="module">
+if (typeof Phaser === 'undefined') {
+  throw new Error("Phaser no está cargado. Asegúrate de incluir el script de Phaser antes de tu código.");
+}
+
+// Importaciones (Firebase ya configurado)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-const firebaseConfig = {
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut 
+} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  limit 
+} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
     apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
     authDomain: "logic-game-2bec1.firebaseapp.com",
     projectId: "logic-game-2bec1",
@@ -12,8 +33,9 @@ const firebaseConfig = {
   
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
-</script>
-</script>
+const db = getFirestore(app);
+const auth = getAuth(app);
+
 // Conexión con Deck of Cards API
 const deckId = "new"; // Genera una nueva baraja
 let deck;
