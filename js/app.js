@@ -88,7 +88,6 @@ let memoryGameActive = false; // Flag para evitar clics rápidos durante la comp
 let currentMemoryLevel = 1; // Nivel actual del juego
 
 // === SELECTORES ADICIONALES (asegúrate que estén definidos) ===
-const memoryGameDiv = document.getElementById('memory-game');
 const memoryResultDiv = document.getElementById('memory-result');
 const memoryLevelSpan = document.getElementById('memory-level');
 // const memoryMovesSpan = document.getElementById('memory-moves'); // Podrías añadir un span para mostrar movimientos

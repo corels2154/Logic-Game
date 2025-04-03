@@ -59,10 +59,17 @@
             <section id="memoria" class="tab-content">
                 <h2><i class="fas fa-brain"></i> Juego de Memoria</h2>
                 <div class="memory-controls">
+                    <label for="memory-level-select">Nivel:</label>
+                    <select id="memory-level-select">
+                        <option value="1">Nivel 1 (4 pares)</option>
+                        <option value="2">Nivel 2 (6 pares)</option>
+                        <option value="3">Nivel 3 (8 pares)</option>
+                        <option value="4">Nivel 4 (10 pares)</option>
+                        <option value="5">Nivel 5 (12 pares)</option>
+                    </select>
                     <button id="start-memory-button" class="btn primary"> <i class="fas fa-play"></i> Comenzar Juego
                     </button>
-                    <p>Nivel: <span id="memory-level">1</span></p>
-                </div>
+                    </div>
                 <div id="memory-game" class="memory-grid">
                     <p style="text-align: center; grid-column: 1 / -1;">(Lógica del juego no implementada)</p>
                 </div>
