@@ -169,6 +169,39 @@ async function loadFavorites() {
     console.error("Error cargando favoritos:", error);
   }
 }
+userFavorites = [];
+const favoritesList = document.getElementById('favorites-list');
+favoritesList.innerHTML = ''; // Limpiar la lista antes de agregar nuevos elementos
+
+snapshot.forEach(doc => {
+    const card = doc.data();
+    userFavorites.push({ 
+        id: doc.id, 
+        code: card.code,
+        value: card.value,
+        suit: card.suit,
+        image: card.image,
+        timestamp: card.timestamp?.toDate() || new Date()
+    });
+    
+    // Crear elemento HTML para cada carta favorita
+    const favoriteItem = document.createElement('div');
+    favoriteItem.className = 'favorite-item';
+    favoriteItem.innerHTML = `
+        <img src="${card.image}" alt="${card.value} of ${card.suit}" class="favorite-img">
+        <div class="favorite-info">
+            <span>${translateValue(card.value)} de ${translateSuit(card.suit)}</span>
+            <button onclick="deleteFavorite('${doc.id}')" class="delete-btn">
+                <i class="fas fa-trash"></i> Eliminar
+            </button>
+        </div>
+    `;
+    
+    favoritesList.appendChild(favoriteItem);
+});
+
+// Actualizar contador de favoritos
+document.getElementById('favorites-count').textContent = userFavorites.length;
 
 // 3. Eliminar favorito
 async function deleteFavorite(favId) {
@@ -180,8 +213,10 @@ async function deleteFavorite(favId) {
     loadFavorites();
   } catch (error) {
     console.error("Error eliminando favorito:", error);
+    alert("No se pudo eliminar. Intenta nuevamente.");
   }
-}
+  }
+
 
 // ======================
 // AUTENTICACIÓN
