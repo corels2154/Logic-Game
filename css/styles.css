@@ -1,22 +1,22 @@
 /* styles.css */
 :root {
-    --primary-color: #4CAF50;
-    --secondary-color: #2E7D32;
-    --accent-color: #8BC34A;
-    --text-color: #333;
-    --bg-color: #f5f5f5;
-    --card-bg: #fff;
-    --error-color: #f44336;
+    --primary-color: #3CF42A; /* Bright green */
+    --secondary-color: #35F092; /* Slightly darker green */
+    --accent-color: #F07726; /* Orange */
+    --text-color: #333; /* Default dark text */
+    --bg-color: #f5f5f5; /* Default light background */
+    --card-bg: #fff; /* Default white card background */
+    --error-color: #FA3920; /* Red for errors */
 }
 
 [data-theme="dark"] {
-    --primary-color: #2E7D32;
-    --secondary-color: #1B5E20;
-    --accent-color: #689F38;
-    --text-color: #f5f5f5;
-    --bg-color: #121212;
-    --card-bg: #1e1e1e;
-    --error-color: #d32f2f;
+    --primary-color: #35F092; /* Darker green */
+    --secondary-color: #58A37E; /* Muted green */
+    --accent-color: #F07726; /* Orange */
+    --text-color: #f5f5f5; /* Default light text */
+    --bg-color: #121212; /* Default dark background */
+    --card-bg: #1e1e1e; /* Slightly lighter dark card background */
+    --error-color: #FA3920; /* Red for errors */
 }
 
 * {
@@ -422,210 +422,13 @@ input:checked + .slider:before {
     .memory-grid {
         grid-template-columns: repeat(3, 1fr);
     }
-    
+
     .stats-container {
         grid-template-columns: 1fr;
     }
-    
+
     .game-controls {
         flex-direction: column;
         align-items: center;
     }
 }
-body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin: 0;
-    padding: 0;
-    background-color: #f5f5f5;
-}
-
-#splash {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #2E7D32;
-    color: white;
-}
-
-.splash-logo {
-    width: 100px;
-    height: 100px;
-    margin-bottom: 20px;
-}
-
-#app-content {
-    padding: 20px;
-}
-
-#card-display img {
-    max-width: 100%;
-    height: auto;
-    margin: 20px 0;
-}
-
-button {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    margin: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.favorite-card {
-    display: inline-block;
-    margin: 10px;
-    border: 1px solid #ddd;
-    padding: 10px;
-    border-radius: 5px;
-}
-
-.favorite-card img {
-    width: 100px;
-    height: auto;
-}
-.favorite-item {
-    background: white;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-}
-
-.favorite-img {
-    width: 60px;
-    height: auto;
-    margin-right: 15px;
-    border-radius: 5px;
-}
-
-.favorite-info {
-    flex-grow: 1;
-}
-
-.delete-btn {
-    background: #ff4444;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.delete-btn:hover {
-    background: #cc0000;
-}
-
-#favorites-count {
-    font-weight: bold;
-    color: #4CAF50;
-}
-.memory-grid {
-    display: grid;
-    gap: 10px;
-    margin: 20px auto;
-    max-width: 500px; /* O ajusta según necesites */
-    /* grid-template-columns: repeat(4, 1fr); /* Se ajustará con JS */
-/* } */ /* Ya tenías una regla .memory-grid, asegúrate que no haya conflictos */
-
-/* .memory-card { */ /* Ya tenías esta regla, la modificamos */
-   /* aspect-ratio: 2 / 3; /* Proporción típica de carta */
-   /* background-color: var(--primary-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: transform 0.6s;
-    transform-style: preserve-3d; /* Necesario para el efecto 3D flip */
-    /* position: relative; /* Para posicionar el contenido interno */
-/* } */
-
-/* Modifica o añade estas reglas para el efecto de volteo */
-/*.memory-card .memory-card-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    text-align: center;
-    transition: transform 0.6s;
-    transform-style: preserve-3d;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    border-radius: 8px;
-}
-
-.memory-card.flipped .memory-card-inner {
-    transform: rotateY(180deg);
-}
-
-.memory-card-front, .memory-card-back {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    -webkit-backface-visibility: hidden; /* Safari */
-    /*backface-visibility: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-}
-
-.memory-card-front {
-    background-color: var(--primary-color);
-    color: white;
-    font-size: 2rem; /* Tamaño del ícono '?' */
-/*}
-
-.memory-card-back {
-    background-color: var(--card-bg); /* Fondo blanco o del tema */
-   /* color: var(--text-color);
-    transform: rotateY(180deg); /* Oculto inicialmente */
-    /* padding: 5px; /* Espacio para la imagen */
-/*}
-
-.memory-card-back img {
-    max-width: 90%;
-    max-height: 90%;
-    object-fit: contain; /* Para que la imagen quepa bien */
-/* } */
-
-/*.memory-card.matched .memory-card-inner {
-    /* Efecto para indicar que ya fue encontrada */
-    /* transform: scale(0.95); /* Encoger ligeramente */
-    /* box-shadow: 0 0 10px var(--accent-color); /* Resplandor */
-    /* opacity: 0.7; /* Hacerla semi-transparente */
-/* } */
-
-/* Estilo para el spinner dentro del grid */
-/* .memory-grid .spinner {
-    grid-column: 1 / -1; /* Ocupa todo el ancho del grid */
-   /* margin: 20px auto;
-    width: 40px;
-    height: 40px;
-} */
-
-/* Estilos para el área de resultados */
-/* #memory-result {
-    text-align: center;
-    margin-top: 20px;
-    padding: 15px;
-    background-color: var(--card-bg);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-#memory-result h3 {
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
-
-#memory-result button {
-    margin: 5px;
-} */
