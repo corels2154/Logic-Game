@@ -753,13 +753,24 @@ loginForm.addEventListener('submit', async (e) => {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = registerForm.registerName.value;
-    const email = registerForm.registerEmail.value;
-    const password = registerForm.registerPassword.value;
-    const birthdate = registerForm.registerBirthdate.value;
-    const username = registerForm.registerUsername.value;
-    const country = registerForm.registerCountry.value;
-    const interests = registerForm.registerInterests.value;
+    const registerFormElement = document.getElementById('register-form-element');
+
+    if (registerFormElement) {
+        const name = registerFormElement.querySelector('#register-name').value;
+        const email = registerFormElement.querySelector('#register-email').value;
+        const password = registerFormElement.querySelector('#register-password').value;
+        const birthdate = registerFormElement.querySelector('#register-birthdate').value;
+        const username = registerFormElement.querySelector('#register-username').value;
+        const country = registerFormElement.querySelector('#register-country').value;
+        const interests = registerFormElement.querySelector('#register-interests').value;
+    
+        // Ahora puedes usar las variables name, email, password, etc.
+        console.log("Nombre:", name);
+        console.log("Email:", email);
+        // ... y así sucesivamente
+    } else {
+        console.error("No se encontró el formulario de registro.");
+    }
     registerErrorP.style.display = 'none'; // Ocultar errores previos
 
     if (password.length < 6) {
