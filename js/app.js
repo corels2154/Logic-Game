@@ -763,58 +763,38 @@ registerForm.addEventListener('submit', async (e) => {
         const username = registerFormElement.querySelector('#register-username').value;
         const country = registerFormElement.querySelector('#register-country').value;
         const interests = registerFormElement.querySelector('#register-interests').value;
-    
+
         // Ahora puedes usar las variables name, email, password, etc.
         console.log("Nombre:", name);
         console.log("Email:", email);
         // ... y así sucesivamente
+
+        registerErrorP.style.display = 'none'; // Ocultar errores previos
+
+        if (password.length < 6) {
+            registerErrorP.textContent = "La contraseña debe tener al menos 6 caracteres.";
+            registerErrorP.style.display = 'block';
+            return;
+        }
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            console.log("Usuario registrado:", userCredential.user);
+            // Guardar datos adicionales en Firestore
+            await saveUserData(userCredential.user.uid, { name, username, country, birthdate, interests, email });
+            // auth.onAuthStateChanged se encargará de actualizar la UI
+        } catch (error) {
+            console.error("Error al registrar usuario:", error.message);
+            registerErrorP.textContent = traducirErrorAuth(error.code);
+            registerErrorP.style.display = 'block';
+        }
+
     } else {
         console.error("No se encontró el formulario de registro.");
     }
-    registerErrorP.style.display = 'none'; // Ocultar errores previos
-
-    if (password.length < 6) {
-        registerErrorP.textContent = "La contraseña debe tener al menos 6 caracteres.";
-        registerErrorP.style.display = 'block';
-        return;
-    }
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("Usuario registrado:", userCredential.user);
-        // Guardar datos adicionales en Firestore
-        await saveUserData(userCredential.user.uid, { name, username, country, birthdate, interests, email });
-        // auth.onAuthStateChanged se encargará de actualizar la UI
-    } catch (error) {
-        console.error("Error al registrar usuario:", error.message);
-        registerErrorP.textContent = traducirErrorAuth(error.code);
-        registerErrorP.style.display = 'block';
-    }
 });
 
-logoutButton.addEventListener('click', async () => {
-    try {
-        await signOut(auth);
-        console.log("Usuario cerró sesión.");
-        // auth.onAuthStateChanged se encargará de actualizar la UI
-    } catch (error) {
-        console.error("Error al cerrar sesión:", error);
-        alert("Error al cerrar sesión.");
-    }
-});
-
-showRegisterLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    loginFormContainer.style.display = 'none';
-    registerFormContainer.style.display = 'block';
-});
-
-showLoginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    registerFormContainer.style.display = 'none';
-    loginFormContainer.style.display = 'block';
-});
-
+// ... el resto de tu código (listeners para logout y cambio de formularios)
 function traducirErrorAuth(errorCode) {
     switch (errorCode) {
         case 'auth/email-already-in-use':
