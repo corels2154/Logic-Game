@@ -29,9 +29,10 @@ const firebaseConfig = {
   
 
 /// 2. Inicializar Firebase
-firebase.initializeApp(firebaseConfig);
+const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
 
 // 3. Variables globales
 let currentDeckId = 'new';
@@ -331,30 +332,6 @@ function translateSuit(suit) {
   return suits[suit] || suit;
 }
 
-function translateValue(value) {
-  const values = {
-    'ACE': 'As',
-    'KING': 'Rey',
-    'QUEEN': 'Reina',
-    'JACK': 'Jota'
-  };
-  return values[value] || value;
-}
-
-function updateStats() {
-  document.getElementById('remaining-cards').textContent = remainingCards;
-  document.getElementById('total-favorites').textContent = userFavorites.length;
-}
-
-function translateSuit(suit) {
-  const suits = {
-      'HEARTS': 'Corazones',
-      'DIAMONDS': 'Diamantes',
-      'CLUBS': 'Tréboles',
-      'SPADES': 'Picas'
-  };
-  return suits[suit] || suit;
-}
 
 function translateValue(value) {
   const values = {
@@ -374,6 +351,14 @@ function translateValue(value) {
   };
   return values[value] || value;
 }
+
+
+function updateStats() {
+  document.getElementById('remaining-cards').textContent = remainingCards;
+  document.getElementById('total-favorites').textContent = userFavorites.length;
+}
+
+
 
 // ======================
 // INICIALIZACIÓN
