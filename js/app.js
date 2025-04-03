@@ -78,6 +78,269 @@ const themeSelector = document.getElementById('theme-selector');
 const startMemoryButton = document.getElementById('start-memory-button');
 const memoryGameDiv = document.getElementById('memory-game');
 
+// === AÑADE ESTAS VARIABLES GLOBALES AL INICIO DE TU app.js ===
+let memoryCards = [];       // Array de cartas para el juego actual
+let flippedCards = [];      // Array para guardar las 1 o 2 cartas volteadas temporalmente
+let matchedPairs = 0;       // Contador de pares encontrados
+let totalPairs = 0;         // Total de pares en el nivel actual
+let memoryMoves = 0;        // Contador de movimientos (intentos)
+let memoryGameActive = false; // Flag para evitar clics rápidos durante la comparación/animación
+let currentMemoryLevel = 1; // Nivel actual del juego
+
+// === SELECTORES ADICIONALES (asegúrate que estén definidos) ===
+const memoryGameDiv = document.getElementById('memory-game');
+const memoryResultDiv = document.getElementById('memory-result');
+const memoryLevelSpan = document.getElementById('memory-level');
+// const memoryMovesSpan = document.getElementById('memory-moves'); // Podrías añadir un span para mostrar movimientos
+
+// ===========================================================
+// === REEMPLAZA TU FUNCIÓN startMemoryGame CON ESTA VERSIÓN ===
+// ===========================================================
+
+async function startMemoryGame() {
+    console.log(`Iniciando Juego de Memoria - Nivel ${currentMemoryLevel}`);
+    memoryGameActive = false; // Asegurar que esté inactivo al inicio
+    memoryResultDiv.innerHTML = ''; // Limpiar resultados previos
+    memoryGameDiv.innerHTML = '<div class="spinner" style="grid-column: 1 / -1; margin: 20px auto;"></div>'; // Indicador de carga
+    startMemoryButton.disabled = true;
+    startMemoryButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando Nivel...';
+    memoryLevelSpan.textContent = currentMemoryLevel;
+    memoryMoves = 0;
+    matchedPairs = 0;
+    flippedCards = [];
+
+    // --- 1. Decidir número de pares según nivel ---
+    Nivel 1: 4 pares (8 cartas)
+    Nivel 2: 6 pares (12 cartas)
+    Nivel 3: 8 pares (16 cartas) ... etc.
+    totalPairs = 2 + (currentMemoryLevel * 2);
+    console.log(`Nivel ${currentMemoryLevel} requiere ${totalPairs} pares.`);
+
+    // --- 2. Robar N cartas ÚNICAS de la API ---
+    try {
+        const uniqueCards = await fetchUniqueCardsForMemory(totalPairs);
+        if (!uniqueCards) {
+            throw new Error("No se pudieron obtener cartas únicas.");
+        }
+
+        // --- 3. Duplicar para tener pares y 4. Barajar ---
+        memoryCards = prepareMemoryCards(uniqueCards);
+
+        // --- 5. Crear elementos HTML ---
+        renderMemoryBoard();
+
+        // --- Marcar juego como activo ---
+        memoryGameActive = true;
+
+    } catch (error) {
+        console.error("Error iniciando juego de memoria:", error);
+        memoryResultDiv.innerHTML = `<p style="color: var(--error-color);">Error al cargar el nivel: ${error.message}</p>`;
+        memoryGameDiv.innerHTML = ''; // Limpiar spinner
+    } finally {
+        startMemoryButton.disabled = false; // Rehabilitar botón
+         startMemoryButton.innerHTML = '<i class="fas fa-play"></i> Comenzar Juego';
+    }
+}
+
+async function fetchUniqueCardsForMemory(numPairs) {
+    console.log(`Intentando robar ${numPairs} cartas únicas.`);
+    if (!currentDeckId || remainingCards < numPairs) {
+        console.log("No hay baraja válida o suficientes cartas. Inicializando nueva baraja...");
+        await initDeck(); // Espera a que la nueva baraja esté lista
+        if (!currentDeckId || remainingCards < numPairs) {
+            // Si aún después de inicializar no hay suficientes, es un problema mayor
+            alert("No se pudo obtener una baraja con suficientes cartas para el juego.");
+            return null;
+        }
+    }
+
+    try {
+        // Intenta robar las cartas necesarias
+        const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=${numPairs}`);
+        if (!response.ok) throw new Error(`Error ${response.status} de la API al robar para memoria`);
+        const data = await response.json();
+
+        if (data.success && data.cards.length === numPairs) {
+            remainingCards = data.remaining; // Actualizar cartas restantes globales
+            updateGameUI(); // Actualizar span de cartas restantes
+            console.log("Cartas únicas robadas para memoria:", data.cards);
+            return data.cards; // Devuelve las cartas robadas
+        } else {
+            // Si falla (ej. no quedan suficientes), intenta reiniciar la baraja y robar de nuevo
+            console.warn("No se pudieron robar suficientes cartas, reintentando con nueva baraja...");
+             await initDeck();
+             if (!currentDeckId || remainingCards < numPairs) {
+                 alert("Fallo crítico: No se pudo obtener una baraja con suficientes cartas.");
+                 return null;
+             }
+             // Segundo intento
+            const response2 = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=${numPairs}`);
+             if (!response2.ok) throw new Error(`Error ${response2.status} en segundo intento de robo`);
+             const data2 = await response2.json();
+
+             if (data2.success && data2.cards.length === numPairs) {
+                  remainingCards = data2.remaining;
+                  updateGameUI();
+                  console.log("Cartas únicas robadas en segundo intento:", data2.cards);
+                  return data2.cards;
+             } else {
+                 throw new Error("No se pudieron obtener las cartas necesarias después de reintentar.");
+             }
+        }
+    } catch (error) {
+        console.error("Error fetching memory cards:", error);
+        alert(`Error al obtener cartas para el juego: ${error.message}`);
+        return null;
+    }
+}
+
+function prepareMemoryCards(uniqueCards) {
+    let cards = [];
+    uniqueCards.forEach(card => {
+        // Añadir dos copias de cada carta, con identificadores únicos si es necesario,
+        // pero con el mismo 'matchCode' para la comparación.
+        cards.push({ ...card, id: `${card.code}-a`, matchCode: card.code, isFlipped: false, isMatched: false });
+        cards.push({ ...card, id: `${card.code}-b`, matchCode: card.code, isFlipped: false, isMatched: false });
+    });
+    // Barajar las cartas
+    return shuffleArray(cards);
+}
+
+function renderMemoryBoard() {
+    memoryGameDiv.innerHTML = ''; // Limpiar contenido anterior (spinner)
+
+    // Ajustar el estilo de la cuadrícula según el número de cartas
+    const numCards = memoryCards.length;
+    let columns = 4; // Por defecto
+    if (numCards === 12) columns = 4; // 4x3
+    else if (numCards === 16) columns = 4; // 4x4
+    else if (numCards > 16) columns = 5; // Para niveles más altos
+    memoryGameDiv.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+    // Crear y añadir las cartas al tablero
+    memoryCards.forEach((cardData, index) => {
+        const cardElement = document.createElement('div');
+        cardElement.classList.add('memory-card');
+        cardElement.dataset.index = index; // Guardar índice para referenciar cardData
+        cardElement.dataset.matchCode = cardData.matchCode;
+
+        // Contenido interno (para mostrar imagen al voltear)
+        cardElement.innerHTML = `
+            <div class="memory-card-inner">
+                <div class="memory-card-front">
+                    <i class="fas fa-question"></i>
+                </div>
+                <div class="memory-card-back">
+                    <img src="${cardData.image}" alt="${cardData.code}" loading="lazy">
+                </div>
+            </div>
+        `;
+
+        cardElement.addEventListener('click', handleMemoryCardClick);
+        memoryGameDiv.appendChild(cardElement);
+    });
+     console.log("Tablero de memoria renderizado con", numCards, "cartas.");
+}
+
+function handleMemoryCardClick(event) {
+    if (!memoryGameActive) return; // Ignorar clics si el juego está "pausado"
+
+    const clickedCardElement = event.currentTarget;
+    const cardIndex = parseInt(clickedCardElement.dataset.index);
+    const cardData = memoryCards[cardIndex];
+
+    // Ignorar si ya está volteada o encontrada, o si ya hay 2 volteadas
+    if (cardData.isFlipped || cardData.isMatched || flippedCards.length >= 2) {
+        return;
+    }
+
+    // --- Voltear la carta ---
+    cardData.isFlipped = true;
+    clickedCardElement.classList.add('flipped');
+    flippedCards.push({ element: clickedCardElement, data: cardData });
+    console.log("Carta volteada:", cardData.code);
+
+    // --- Comprobar si hay dos cartas volteadas ---
+    if (flippedCards.length === 2) {
+        memoryGameActive = false; // Pausar el juego mientras se comprueba
+        memoryMoves++;
+        // console.log("Movimiento:", memoryMoves); // Actualizar contador de movimientos en UI si existe
+        checkForMatch();
+    }
+}
+
+function checkForMatch() {
+    const card1 = flippedCards[0];
+    const card2 = flippedCards[1];
+
+    if (card1.data.matchCode === card2.data.matchCode) {
+        // --- ¡Es un par! ---
+        console.log("¡Par encontrado!", card1.data.matchCode);
+        handleMatch(card1, card2);
+        checkGameOver();
+        memoryGameActive = true; // Reactivar juego
+    } else {
+        // --- No es un par ---
+        console.log("No es par.");
+        // Esperar un poco antes de voltearlas de nuevo
+        setTimeout(() => {
+            handleNoMatch(card1, card2);
+             memoryGameActive = true; // Reactivar juego después de voltear
+        }, 1000); // Esperar 1 segundo
+    }
+     // Limpiar array de cartas volteadas después del procesamiento (sea match o no)
+     // Se hace aquí o dentro de handleMatch/handleNoMatch. Aquí parece más seguro.
+     flippedCards = [];
+}
+
+function handleMatch(card1, card2) {
+    card1.data.isMatched = true;
+    card2.data.isMatched = true;
+    card1.element.classList.add('matched');
+    card2.element.classList.add('matched');
+    // Opcional: remover el listener para que no se puedan clickear más
+    card1.element.removeEventListener('click', handleMemoryCardClick);
+    card2.element.removeEventListener('click', handleMemoryCardClick);
+    matchedPairs++;
+}
+
+function handleNoMatch(card1, card2) {
+    card1.data.isFlipped = false;
+    card2.data.isFlipped = false;
+    card1.element.classList.remove('flipped');
+    card2.element.classList.remove('flipped');
+}
+
+function checkGameOver() {
+    if (matchedPairs === totalPairs) {
+        console.log("¡Juego terminado!");
+        memoryGameActive = false; // Juego finalizado
+        memoryResultDiv.innerHTML = `
+            <h3 style="color: var(--primary-color);">¡Felicidades!</h3>
+            <p>Completaste el Nivel ${currentMemoryLevel} en ${memoryMoves} movimientos.</p>
+            <button id="next-level-btn" class="btn primary">Siguiente Nivel</button>
+            <button id="play-again-btn" class="btn">Jugar de Nuevo (Nivel ${currentMemoryLevel})</button>
+        `;
+        // Añadir listeners a los nuevos botones
+        document.getElementById('next-level-btn')?.addEventListener('click', () => {
+            currentMemoryLevel++; // Incrementar nivel
+            startMemoryGame();    // Empezar el siguiente nivel
+        });
+         document.getElementById('play-again-btn')?.addEventListener('click', startMemoryGame); // Reiniciar nivel actual
+    }
+}
+
+// --- Función auxiliar para barajar un array (Fisher-Yates) ---
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]]; // Intercambio de elementos
+  }
+  return array;
+}
+
+
+
 // ======================
 // FUNCIONES DE LA API DECK OF CARDS
 // ======================

@@ -531,3 +531,101 @@ button {
     font-weight: bold;
     color: #4CAF50;
 }
+.memory-grid {
+    display: grid;
+    gap: 10px;
+    margin: 20px auto;
+    max-width: 500px; /* O ajusta según necesites */
+    /* grid-template-columns: repeat(4, 1fr); /* Se ajustará con JS */
+/* } */ /* Ya tenías una regla .memory-grid, asegúrate que no haya conflictos */
+
+/* .memory-card { */ /* Ya tenías esta regla, la modificamos */
+   /* aspect-ratio: 2 / 3; /* Proporción típica de carta */
+   /* background-color: var(--primary-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.6s;
+    transform-style: preserve-3d; /* Necesario para el efecto 3D flip */
+    /* position: relative; /* Para posicionar el contenido interno */
+/* } */
+
+/* Modifica o añade estas reglas para el efecto de volteo */
+/*.memory-card .memory-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    border-radius: 8px;
+}
+
+.memory-card.flipped .memory-card-inner {
+    transform: rotateY(180deg);
+}
+
+.memory-card-front, .memory-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden; /* Safari */
+    /*backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.memory-card-front {
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 2rem; /* Tamaño del ícono '?' */
+/*}
+
+.memory-card-back {
+    background-color: var(--card-bg); /* Fondo blanco o del tema */
+   /* color: var(--text-color);
+    transform: rotateY(180deg); /* Oculto inicialmente */
+    /* padding: 5px; /* Espacio para la imagen */
+/*}
+
+.memory-card-back img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain; /* Para que la imagen quepa bien */
+/* } */
+
+/*.memory-card.matched .memory-card-inner {
+    /* Efecto para indicar que ya fue encontrada */
+    /* transform: scale(0.95); /* Encoger ligeramente */
+    /* box-shadow: 0 0 10px var(--accent-color); /* Resplandor */
+    /* opacity: 0.7; /* Hacerla semi-transparente */
+/* } */
+
+/* Estilo para el spinner dentro del grid */
+/* .memory-grid .spinner {
+    grid-column: 1 / -1; /* Ocupa todo el ancho del grid */
+   /* margin: 20px auto;
+    width: 40px;
+    height: 40px;
+} */
+
+/* Estilos para el área de resultados */
+/* #memory-result {
+    text-align: center;
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#memory-result h3 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+#memory-result button {
+    margin: 5px;
+} */
