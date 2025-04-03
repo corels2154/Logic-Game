@@ -15,7 +15,7 @@
 <body>
     <!-- Splash Screen -->
     <div id="splash">
-        <img src="assets/iconlg.jpeg" alt="Logo" class="splash-logo">
+        <img src="./assets/iconlg.jpeg" alt="Logo" class="splash-logo">
         <h1>Deck Explorer</h1>
     </div>
 
@@ -35,6 +35,14 @@
 
     <!-- Font Awesome para íconos -->
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com;
+               script-src 'self' 'unsafe-eval' https://*.gstatic.com;
+               connect-src 'self' https://*.googleapis.com wss://*.firebaseio.com;
+               img-src 'self' data: https://*.googleusercontent.com;
+               style-src 'self' 'unsafe-inline';
+               font-src 'self' data:;
+               require-trusted-types-for 'script';">
 
 </head>
 <body>
