@@ -1,3 +1,4 @@
+
 // Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { 
@@ -19,15 +20,19 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
+// URLs de recursos por defecto
+const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
+const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
+
 // Configuración de Firebase
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "logic-game-2bec1.firebaseapp.com",
-  projectId: "logic-game-2bec1",
-  storageBucket: "logic-game-2bec1.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
-};
+    apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
+    authDomain: "logic-game-2bec1.firebaseapp.com",
+    projectId: "logic-game-2bec1",
+    storageBucket: "logic-game-2bec1.firebasestorage.app",
+    messagingSenderId: "49694670172",
+    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
+  };
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
@@ -78,26 +83,9 @@ const logicProblems = [
   }
 ];
 
-// Variables para el módulo de aprendizaje
-let currentTable = null;
-let currentFraction = null;
-let currentPercentage = null;
-let currentAlgebraProblem = null;
-
 // Temporizadores
 let gameTimer = null;
 let timeLeft = 60;
-
-// Sonidos
-let soundsEnabled = true;
-let volume = 0.7;
-const sounds = {
-  correct: document.getElementById('correct-sound'),
-  wrong: document.getElementById('wrong-sound'),
-  flip: document.getElementById('flip-sound'),
-  win: document.getElementById('win-sound'),
-  background: document.getElementById('background-music')
-};
 
 // API de cartas
 const cardsApi = {
@@ -169,10 +157,139 @@ async function generateMathProblem() {
   }
 }
 
-// ... (resto de las funciones del juego matemático se mantienen igual)
+function createMathProblem(value1, value2, operation, card1, card2) {
+  let problemText = '';
+  let answer = 0;
+  
+  switch(operation) {
+    case 'suma':
+      problemText = `${value1} + ${value2}`;
+      answer = value1 + value2;
+      break;
+    case 'resta':
+      problemText = `${value1} - ${value2}`;
+      answer = value1 - value2;
+      break;
+    case 'multiplicacion':
+      problemText = `${value1} × ${value2}`;
+      answer = value1 * value2;
+      break;
+    case 'division':
+      if (value2 === 0) value2 = 1; // Evitar división por cero
+      answer = Math.round((value1 / value2) * 10) / 10;
+      problemText = `${value1} ÷ ${value2}`;
+      break;
+  }
+  
+  return {
+    card1,
+    card2,
+    problem: problemText,
+    answer,
+    operation
+  };
+}
+
+function cardValueToNumber(value) {
+  const valuesMap = {
+    'ACE': 1,
+    'JACK': 11,
+    'QUEEN': 12,
+    'KING': 13
+  };
+  return valuesMap[value] || parseInt(value) || 0;
+}
+
+function displayMathProblem() {
+  if (!currentMathProblem) return;
+  
+  const { card1, card2, operation, problem, answer } = currentMathProblem;
+  
+  // Mostrar cartas
+  const cardDisplay = document.getElementById('card-display');
+  if (cardDisplay) {
+    cardDisplay.innerHTML = `
+      <div class="math-card">
+        <img src="${card1.image}" alt="${card1.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+        <span class="math-symbol">${getOperationSymbol(operation)}</span>
+        <img src="${card2.image}" alt="${card2.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+        <span class="math-symbol">=</span>
+        <span class="question-mark">?</span>
+      </div>
+    `;
+  }
+  
+  // Mostrar problema
+  const problemDisplay = document.getElementById('problem-display');
+  if (problemDisplay) {
+    problemDisplay.innerHTML = `<h3>${problem} = ?</h3>`;
+  }
+  
+  // Mostrar opciones de respuesta
+  const answerOptions = document.getElementById('answer-options');
+  if (answerOptions) {
+    answerOptions.innerHTML = '';
+    const answers = generateAnswerOptions(answer, 4);
+    
+    answers.forEach(answer => {
+      const button = document.createElement('button');
+      button.className = 'answer-btn';
+      button.textContent = answer;
+      button.dataset.answer = answer;
+      button.addEventListener('click', checkMathAnswer);
+      answerOptions.appendChild(button);
+    });
+  }
+}
+
+function checkMathAnswer(event) {
+  const selectedAnswer = parseFloat(event.target.dataset.answer);
+  const isCorrect = selectedAnswer === currentMathProblem.answer;
+  
+  if (isCorrect) {
+    currentStreak++;
+    const pointsEarned = calculatePoints();
+    currentScore += pointsEarned;
+    
+    event.target.classList.add('correct');
+    showResultModal('¡Correcto!', `Ganaste ${pointsEarned} puntos. Racha: ${currentStreak}`, 'success');
+    updateScoreUI();
+    
+    if (currentUser) saveMathProgress(currentMathProblem.operation, true);
+    
+    setTimeout(generateMathProblem, 1500);
+  } else {
+    currentStreak = 0;
+    event.target.classList.add('incorrect');
+    
+    // Mostrar la respuesta correcta
+    document.querySelectorAll('.answer-btn').forEach(btn => {
+      if (parseFloat(btn.dataset.answer) === currentMathProblem.answer) {
+        btn.classList.add('correct');
+      }
+    });
+    
+    showResultModal('¡Ups!', `La respuesta correcta era ${currentMathProblem.answer}`, 'error');
+    if (currentUser) saveMathProgress(currentMathProblem.operation, false);
+    
+    setTimeout(() => displayMathProblem(), 2000);
+  }
+}
+
+function calculatePoints() {
+  const difficultyPoints = {
+    'facil': 5,
+    'medio': 10,
+    'dificil': 20
+  };
+  
+  const basePoints = difficultyPoints[currentDifficulty] || 10;
+  const streakBonus = Math.min(currentStreak * 2, 20);
+  return basePoints + streakBonus;
+}
 
 // ======================
-// JUEGO DE MEMORIA MEJORADO
+// JUEGO DE MEMORIA
 // ======================
 
 async function startMemoryGame() {
@@ -198,7 +315,6 @@ async function startMemoryGame() {
     startMemoryTimer();
     memoryGameActive = true;
     
-    playSound('flip');
   } catch (error) {
     console.error("Error en el juego de memoria:", error);
     showResultModal('Error', error.message, 'error');
@@ -208,12 +324,63 @@ async function startMemoryGame() {
   }
 }
 
+function getPairCountByLevel(level) {
+  const levels = {
+    1: 4,   // Principiante
+    2: 6,   // Intermedio
+    3: 8,   // Avanzado
+    4: 10,  // Experto
+    5: 12   // Maestro
+  };
+  return levels[level] || 4;
+}
+
+function prepareMemoryCards(cards) {
+  const pairedCards = [];
+  
+  cards.forEach(card => {
+    const matchCode = `${card.value}-${card.suit}`;
+    pairedCards.push({...card, matchCode, isFlipped: false, isMatched: false});
+    pairedCards.push({...card, matchCode, isFlipped: false, isMatched: false});
+  });
+  
+  return shuffleArray(pairedCards);
+}
+
+function renderMemoryBoard() {
+  const memoryGameDiv = document.getElementById('memory-game');
+  if (!memoryGameDiv) return;
+  
+  memoryGameDiv.innerHTML = '';
+  const columns = Math.ceil(Math.sqrt(memoryCards.length));
+  memoryGameDiv.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+  
+  memoryCards.forEach((card, index) => {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'memory-card';
+    cardElement.dataset.index = index;
+    
+    cardElement.innerHTML = `
+      <div class="memory-card-inner">
+        <div class="memory-card-front">
+          <img src="https://deckofcardsapi.com/static/img/back.png" alt="Carta boca abajo">
+        </div>
+        <div class="memory-card-back">
+          <img src="${card.image}" alt="${card.value} of ${card.suit}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+        </div>
+      </div>
+    `;
+    
+    cardElement.addEventListener('click', () => handleMemoryCardClick(index));
+    memoryGameDiv.appendChild(cardElement);
+  });
+}
+
 function handleMemoryCardClick(index) {
   if (!memoryGameActive || memoryCards[index].isFlipped || memoryCards[index].isMatched) return;
   
   flipCard(index, true);
   flippedCards.push(index);
-  playSound('flip');
   
   if (flippedCards.length === 2) {
     memoryMoves++;
@@ -223,15 +390,25 @@ function handleMemoryCardClick(index) {
     if (checkForMatch()) {
       setTimeout(() => {
         handleMatch();
-        playSound('correct');
       }, 500);
     } else {
       setTimeout(() => {
         handleMismatch();
-        playSound('wrong');
       }, 1000);
     }
   }
+}
+
+function flipCard(index, show) {
+  const cardElement = document.querySelector(`.memory-card[data-index="${index}"]`);
+  if (cardElement) {
+    cardElement.classList.toggle('flipped', show);
+    memoryCards[index].isFlipped = show;
+  }
+}
+
+function checkForMatch() {
+  return memoryCards[flippedCards[0]].matchCode === memoryCards[flippedCards[1]].matchCode;
 }
 
 function handleMatch() {
@@ -247,299 +424,232 @@ function handleMatch() {
   
   if (matchedPairs === totalPairs) {
     endMemoryGame(true);
-    playSound('win');
   } else {
     memoryGameActive = true;
   }
 }
 
+function handleMismatch() {
+  flippedCards.forEach(i => flipCard(i, false));
+  flippedCards = [];
+  memoryGameActive = true;
+}
+
+function endMemoryGame(isCompleted) {
+  clearInterval(memoryTimer);
+  memoryGameActive = false;
+  
+  if (isCompleted) {
+    const pointsEarned = calculateMemoryPoints();
+    currentScore += pointsEarned;
+    updateScoreUI();
+    
+    showMemoryResult(pointsEarned);
+    
+    if (currentUser) {
+      saveMemoryProgress(pointsEarned, currentMemoryLevel, memoryMoves, memoryGameTime);
+    }
+  }
+}
+
+function calculateMemoryPoints() {
+  const timeBonus = Math.max(0, 300 - memoryGameTime);
+  const movesPenalty = memoryMoves * 2;
+  const levelMultiplier = currentMemoryLevel;
+  return Math.max(50, (500 + timeBonus - movesPenalty) * levelMultiplier);
+}
+
+function showMemoryResult(pointsEarned) {
+  const memoryResultDiv = document.getElementById('memory-result');
+  if (memoryResultDiv) {
+    memoryResultDiv.innerHTML = `
+      <div class="memory-result success">
+        <h3>¡Nivel completado!</h3>
+        <p>Movimientos: ${memoryMoves}</p>
+        <p>Tiempo: ${formatTime(memoryGameTime)}</p>
+        <p>Puntos ganados: ${pointsEarned}</p>
+      </div>
+    `;
+  }
+}
+
 // ======================
-// MÓDULO DE APRENDIZAJE
+// JUEGO DE LÓGICA
 // ======================
 
-// Tablas de multiplicar
-function initTables() {
-  const tablesGrid = document.getElementById('tables-grid');
-  tablesGrid.innerHTML = '';
+function startLogicGame() {
+  if (logicProblems.length === 0) {
+    showResultModal('Info', 'No hay más problemas de lógica disponibles', 'info');
+    return;
+  }
   
-  for (let i = 1; i <= 10; i++) {
-    const tableBtn = document.createElement('button');
-    tableBtn.className = 'table-btn';
-    tableBtn.innerHTML = `<i class="fas fa-times"></i> Tabla del ${i}`;
-    tableBtn.dataset.table = i;
-    tableBtn.addEventListener('click', () => showTable(i));
-    tablesGrid.appendChild(tableBtn);
+  currentLogicProblem = logicProblems[Math.floor(Math.random() * logicProblems.length)];
+  displayLogicProblem();
+}
+
+function displayLogicProblem() {
+  if (!currentLogicProblem) return;
+  
+  const logicDisplay = document.getElementById('logic-display');
+  const logicOptions = document.getElementById('logic-options');
+  
+  if (logicDisplay) {
+    logicDisplay.innerHTML = `<p>${currentLogicProblem.question}</p>`;
+  }
+  
+  if (logicOptions) {
+    logicOptions.innerHTML = '';
+    currentLogicProblem.options.forEach((option, index) => {
+      const optionElement = document.createElement('div');
+      optionElement.className = 'logic-option';
+      optionElement.textContent = option;
+      optionElement.dataset.index = index;
+      optionElement.addEventListener('click', () => checkLogicAnswer(index));
+      logicOptions.appendChild(optionElement);
+    });
   }
 }
 
-function showTable(number) {
-  currentTable = number;
-  const tableGame = document.getElementById('table-game');
-  tableGame.innerHTML = '';
+function checkLogicAnswer(selectedIndex) {
+  const isCorrect = selectedIndex === currentLogicProblem.answer;
+  const options = document.querySelectorAll('.logic-option');
   
-  // Mostrar la tabla completa
-  const tableDiv = document.createElement('div');
-  tableDiv.className = 'full-table';
-  
-  let tableHTML = `<h4><i class="fas fa-times"></i> Tabla del ${number}</h4><ul>`;
-  for (let i = 1; i <= 10; i++) {
-    tableHTML += `<li>${number} × ${i} = <span class="table-answer">${number * i}</span></li>`;
-  }
-  tableHTML += '</ul>';
-  
-  tableDiv.innerHTML = tableHTML;
-  tableGame.appendChild(tableDiv);
-  
-  // Agregar juego de práctica
-  const practiceDiv = document.createElement('div');
-  practiceDiv.className = 'table-practice';
-  practiceDiv.innerHTML = `
-    <h4>Practica la tabla</h4>
-    <div class="table-question" id="table-question"></div>
-    <div class="table-options" id="table-options"></div>
-    <button id="new-table-question" class="btn primary"><i class="fas fa-redo"></i> Nueva pregunta</button>
-  `;
-  
-  tableGame.appendChild(practiceDiv);
-  generateTableQuestion();
-  
-  document.getElementById('new-table-question').addEventListener('click', generateTableQuestion);
-}
-
-function generateTableQuestion() {
-  if (!currentTable) return;
-  
-  const multiplier = Math.floor(Math.random() * 10) + 1;
-  const correctAnswer = currentTable * multiplier;
-  
-  const questionDiv = document.getElementById('table-question');
-  questionDiv.innerHTML = `¿Cuánto es ${currentTable} × ${multiplier}?`;
-  
-  const optionsDiv = document.getElementById('table-options');
-  optionsDiv.innerHTML = '';
-  
-  // Generar opciones de respuesta
-  const answers = generateAnswerOptions(correctAnswer, 4);
-  
-  answers.forEach(answer => {
-    const btn = document.createElement('button');
-    btn.className = 'table-option';
-    btn.textContent = answer;
-    btn.addEventListener('click', () => checkTableAnswer(answer, correctAnswer));
-    optionsDiv.appendChild(btn);
-  });
-}
-
-function checkTableAnswer(selected, correct) {
-  const options = document.querySelectorAll('.table-option');
-  options.forEach(option => {
-    if (parseInt(option.textContent) === correct) {
+  options.forEach((option, index) => {
+    if (index === currentLogicProblem.answer) {
       option.classList.add('correct');
     }
-    option.disabled = true;
-  });
-  
-  if (parseInt(selected) === correct) {
-    playSound('correct');
-    showResultModal('¡Correcto!', `¡Muy bien! ${selected} es la respuesta correcta`, 'success');
-  } else {
-    playSound('wrong');
-    showResultModal('¡Ups!', `La respuesta correcta era ${correct}`, 'error');
-  }
-}
-
-// Fracciones
-function initFractions() {
-  document.getElementById('new-fraction-btn').addEventListener('click', generateFraction);
-  document.getElementById('check-fraction-btn').addEventListener('click', checkFraction);
-  generateFraction();
-}
-
-function generateFraction() {
-  const numerator = Math.floor(Math.random() * 10) + 1;
-  const denominator = Math.floor(Math.random() * 10) + 1;
-  
-  currentFraction = {
-    numerator,
-    denominator,
-    value: numerator / denominator
-  };
-  
-  const fractionGame = document.getElementById('fraction-game');
-  fractionGame.innerHTML = `
-    <div class="fraction-display">
-      <div class="fraction-numerator">${numerator}</div>
-      <div class="fraction-line"></div>
-      <div class="fraction-denominator">${denominator}</div>
-    </div>
-    <div class="fraction-inputs">
-      <input type="number" id="decimal-answer" placeholder="Decimal (ej. 0.75)">
-      <input type="text" id="percentage-answer" placeholder="Porcentaje (ej. 75%)">
-    </div>
-  `;
-  
-  document.getElementById('fraction-result').innerHTML = '';
-}
-
-function checkFraction() {
-  if (!currentFraction) return;
-  
-  const decimalInput = document.getElementById('decimal-answer');
-  const percentageInput = document.getElementById('percentage-answer');
-  const fractionResult = document.getElementById('fraction-result');
-  
-  const decimalValue = parseFloat(decimalInput.value);
-  const percentageValue = parseFloat(percentageInput.value);
-  
-  const correctDecimal = currentFraction.value;
-  const correctPercentage = Math.round(currentFraction.value * 100);
-  
-  let decimalCorrect = Math.abs(decimalValue - correctDecimal) < 0.01;
-  let percentageCorrect = Math.abs(percentageValue - correctPercentage) < 1;
-  
-  if (decimalCorrect && percentageCorrect) {
-    fractionResult.innerHTML = '<div class="success"><i class="fas fa-check-circle"></i> ¡Correcto! Ambos valores son correctos</div>';
-    playSound('correct');
-  } else if (decimalCorrect || percentageCorrect) {
-    fractionResult.innerHTML = `<div class="partial"><i class="fas fa-exclamation-circle"></i> Parcialmente correcto. 
-      ${decimalCorrect ? 'El decimal es correcto' : 'El porcentaje es correcto'}</div>`;
-    playSound('correct');
-  } else {
-    fractionResult.innerHTML = `<div class="error"><i class="fas fa-times-circle"></i> Incorrecto. 
-      La respuesta correcta es ${correctDecimal.toFixed(2)} o ${correctPercentage}%</div>`;
-    playSound('wrong');
-  }
-}
-
-// Porcentajes
-function initPercentages() {
-  document.getElementById('new-percentage-btn').addEventListener('click', generatePercentageProblem);
-  generatePercentageProblem();
-}
-
-function generatePercentageProblem() {
-  const total = Math.floor(Math.random() * 100) + 20;
-  const percentage = Math.floor(Math.random() * 100) + 1;
-  const answer = Math.round(total * percentage / 100);
-  
-  currentPercentage = {
-    total,
-    percentage,
-    answer
-  };
-  
-  const percentageGame = document.getElementById('percentage-game');
-  percentageGame.innerHTML = `
-    <h4>¿Cuánto es el ${percentage}% de ${total}?</h4>
-  `;
-  
-  const optionsDiv = document.getElementById('percentage-options');
-  optionsDiv.innerHTML = '';
-  
-  // Generar opciones de respuesta
-  const answers = generateAnswerOptions(answer, 4);
-  
-  answers.forEach(answer => {
-    const btn = document.createElement('button');
-    btn.className = 'percentage-option';
-    btn.textContent = answer;
-    btn.addEventListener('click', () => checkPercentageAnswer(answer));
-    optionsDiv.appendChild(btn);
-  });
-}
-
-function checkPercentageAnswer(selected) {
-  const options = document.querySelectorAll('.percentage-option');
-  options.forEach(option => {
-    if (parseInt(option.textContent) === currentPercentage.answer) {
-      option.classList.add('correct');
+    if (index === selectedIndex && !isCorrect) {
+      option.classList.add('incorrect');
     }
-    option.disabled = true;
+    option.style.pointerEvents = 'none';
   });
   
-  if (parseInt(selected) === currentPercentage.answer) {
-    playSound('correct');
-    showResultModal('¡Correcto!', `¡Muy bien! ${selected} es la respuesta correcta`, 'success');
+  if (isCorrect) {
+    currentStreak++;
+    const pointsEarned = 15;
+    currentScore += pointsEarned;
+    updateScoreUI();
+    
+    showResultModal('¡Correcto!', `Ganaste ${pointsEarned} puntos. Racha: ${currentStreak}`, 'success');
+    if (currentUser) saveLogicProgress(true);
   } else {
-    playSound('wrong');
-    showResultModal('¡Ups!', `La respuesta correcta era ${currentPercentage.answer}`, 'error');
+    currentStreak = 0;
+    showResultModal('¡Ups!', `La respuesta correcta era: ${currentLogicProblem.options[currentLogicProblem.answer]}`, 'error');
+    if (currentUser) saveLogicProgress(false);
+  }
+  
+  document.getElementById('next-logic-btn').style.display = 'block';
+}
+
+// ======================
+// PERFIL Y AUTENTICACIÓN
+// ======================
+
+async function handleLogin() {
+  const email = document.getElementById('login-email')?.value;
+  const password = document.getElementById('login-password')?.value;
+  
+  if (!email || !password) {
+    showResultModal('Error', 'Por favor ingresa email y contraseña', 'error');
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    showResultModal('Éxito', 'Inicio de sesión correcto', 'success');
+  } catch (error) {
+    console.error("Error al iniciar sesión:", error);
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
   }
 }
 
-// Álgebra básica
-function initAlgebra() {
-  document.getElementById('new-algebra-btn').addEventListener('click', generateAlgebraProblem);
-  generateAlgebraProblem();
-}
-
-function generateAlgebraProblem() {
-  const a = Math.floor(Math.random() * 5) + 1;
-  const b = Math.floor(Math.random() * 10) + 1;
-  const c = Math.floor(Math.random() * 10) + 1;
+async function handleSignup() {
+  const email = document.getElementById('signup-email')?.value;
+  const password = document.getElementById('signup-password')?.value;
+  const username = document.getElementById('signup-username')?.value;
+  const age = document.getElementById('signup-age')?.value;
+  const school = document.getElementById('signup-school')?.value;
+  const grade = document.getElementById('signup-grade')?.value;
+  const interests = document.getElementById('signup-interests')?.value;
   
-  // Generar un tipo de problema aleatorio
-  const problemType = Math.floor(Math.random() * 3);
-  let problemText = '';
-  let answer = 0;
-  
-  switch(problemType) {
-    case 0: // Ecuación simple
-      answer = c - b;
-      problemText = `Si ${a}x + ${b} = ${c}, ¿cuánto vale x?`;
-      break;
-    case 1: // Ecuación con resta
-      answer = c + b;
-      problemText = `Si ${a}x - ${b} = ${c}, ¿cuánto vale x?`;
-      break;
-    case 2: // Ecuación con multiplicación
-      answer = Math.round((c / a) * 10) / 10;
-      problemText = `Si ${a}x = ${c}, ¿cuánto vale x?`;
-      break;
+  if (!email || !password || !username || !age || !school || !grade || !interests) {
+    showResultModal('Error', 'Por favor completa todos los campos', 'error');
+    return;
   }
-  
-  currentAlgebraProblem = {
-    problem: problemText,
-    answer: answer
-  };
-  
-  const algebraGame = document.getElementById('algebra-game');
-  algebraGame.innerHTML = `
-    <h4>${problemText}</h4>
-  `;
-  
-  const optionsDiv = document.getElementById('algebra-options');
-  optionsDiv.innerHTML = '';
-  
-  // Generar opciones de respuesta
-  const answers = generateAnswerOptions(answer, 4, true);
-  
-  answers.forEach(answer => {
-    const btn = document.createElement('button');
-    btn.className = 'algebra-option';
-    btn.textContent = answer;
-    btn.addEventListener('click', () => checkAlgebraAnswer(answer));
-    optionsDiv.appendChild(btn);
-  });
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Actualizar perfil con nombre de usuario
+    await updateProfile(auth.currentUser, {
+      displayName: username
+    });
+    
+    // Crear documento de usuario en Firestore con los 7 campos
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      email,
+      username,
+      age,
+      school,
+      grade,
+      interests,
+      totalPoints: 0,
+      mathPoints: 0,
+      memoryPoints: 0,
+      logicPoints: 0,
+      bestStreak: 0,
+      gamesPlayed: 0,
+      createdAt: serverTimestamp()
+    });
+    
+    showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+  } catch (error) {
+    console.error("Error al registrar:", error);
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
+  }
 }
 
-function checkAlgebraAnswer(selected) {
-  const options = document.querySelectorAll('.algebra-option');
-  options.forEach(option => {
-    if (parseFloat(option.textContent) === currentAlgebraProblem.answer) {
-      option.classList.add('correct');
+async function loadProfile() {
+  if (!currentUser) return;
+
+  try {
+    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      updateProfileUI(userData);
     }
-    option.disabled = true;
-  });
-  
-  if (parseFloat(selected) === currentAlgebraProblem.answer) {
-    playSound('correct');
-    showResultModal('¡Correcto!', `¡Muy bien! x = ${selected} es la respuesta correcta`, 'success');
-  } else {
-    playSound('wrong');
-    showResultModal('¡Ups!', `La respuesta correcta era x = ${currentAlgebraProblem.answer}`, 'error');
+  } catch (error) {
+    console.error("Error cargando perfil:", error);
+    showResultModal('Error', 'No se pudo cargar el perfil', 'error');
   }
 }
 
+function updateProfileUI(userData) {
+  document.getElementById('profile-name').textContent = currentUser.displayName || currentUser.email.split('@')[0];
+  document.getElementById('profile-email').textContent = currentUser.email;
+  document.getElementById('profile-age').querySelector('span').textContent = userData.age || '--';
+  document.getElementById('profile-school').querySelector('span').textContent = userData.school || '--';
+  document.getElementById('profile-grade').querySelector('span').textContent = userData.grade || '--';
+  document.getElementById('profile-interests').querySelector('span').textContent = userData.interests || '--';
+  document.getElementById('profile-points').textContent = userData.totalPoints || 0;
+  document.getElementById('profile-level').textContent = calculateLevel(userData.totalPoints || 0);
+  
+  document.getElementById('auth-forms').style.display = 'none';
+  document.getElementById('profile-info').style.display = 'block';
+}
+
+async function handleLogout() {
+  try {
+    await signOut(auth);
+    showResultModal('Éxito', 'Sesión cerrada correctamente', 'success');
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error);
+    showResultModal('Error', 'No se pudo cerrar la sesión', 'error');
+  }
+}
 
 // ======================
 // FUNCIONES AUXILIARES
@@ -793,211 +903,170 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0
 // ======================
 
 function setupEventListeners() {
-    // Tabs
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-    
-    // Modos de juego
-    document.querySelectorAll('.game-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => switchGameMode(btn.dataset.mode));
-    });
-    
-    // Juego matemático
-    document.getElementById('shuffle-button')?.addEventListener('click', async () => {
-      await cardsApi.initNewDeck();
-    });
-    
-    document.getElementById('draw-button')?.addEventListener('click', generateMathProblem);
-    
-    // Juego de memoria
-    document.getElementById('start-memory-button')?.addEventListener('click', startMemoryGame);
-    
-    // Juego de lógica
-    document.getElementById('next-logic-btn')?.addEventListener('click', startLogicGame);
-    
-    // Aprendizaje - Tabs
-    document.querySelectorAll('.learn-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.learn-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        
-        document.querySelectorAll('.learn-content').forEach(c => c.classList.remove('active'));
-        document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
-        
-        // Inicializar el módulo correspondiente
-        switch(tab.dataset.tab) {
-          case 'multiplicacion':
-            initTables();
-            break;
-          case 'fracciones':
-            initFractions();
-            break;
-          case 'porcentajes':
-            initPercentages();
-            break;
-          case 'algebra':
-            initAlgebra();
-            break;
-        }
-      });
-    });
-    
-    // Autenticación
-    document.getElementById('login-btn')?.addEventListener('click', handleLogin);
-    document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
-    
-    // Perfil
-    document.getElementById('logout-button')?.addEventListener('click', handleLogout);
-    
-    // Salir del juego
-    document.getElementById('exit-game-btn')?.addEventListener('click', () => {
-      showResultModal('Salir', '¿Estás seguro de que quieres salir del juego?', 'warning', [
-        { text: 'Cancelar', action: () => {} },
-        { text: 'Salir', action: () => {
-          currentScore = 0;
-          currentStreak = 0;
-          updateScoreUI();
-          generateMathProblem();
-        }}
-      ]);
-    });
-    
-    // Ajustes
-    document.getElementById('sounds-toggle')?.addEventListener('change', (e) => {
-      soundsEnabled = e.target.checked;
-      localStorage.setItem('soundsEnabled', soundsEnabled);
-    });
-    
-    document.getElementById('volume-control')?.addEventListener('input', (e) => {
-      volume = parseFloat(e.target.value);
-      localStorage.setItem('volume', volume);
-    });
-    
-    document.getElementById('kids-mode-toggle')?.addEventListener('change', (e) => {
-      document.body.classList.toggle('kids-mode', e.target.checked);
-      localStorage.setItem('kidsMode', e.target.checked);
-    });
-    
-    document.getElementById('theme-selector')?.addEventListener('change', (e) => {
-      document.body.className = e.target.value;
-      localStorage.setItem('theme', e.target.value);
-    });
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+  
+  // Modos de juego
+  document.querySelectorAll('.game-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchGameMode(btn.dataset.mode));
+  });
+  
+  // Juego matemático
+  document.getElementById('shuffle-button')?.addEventListener('click', async () => {
+    await cardsApi.initNewDeck();
+  });
+  
+  document.getElementById('draw-button')?.addEventListener('click', generateMathProblem);
+  
+  document.getElementById('difficulty-select')?.addEventListener('change', (e) => {
+    currentDifficulty = e.target.value;
+    localStorage.setItem('gameDifficulty', currentDifficulty);
+    if (currentMathProblem) generateMathProblem();
+  });
+  
+  // Juego de memoria
+  document.getElementById('start-memory-button')?.addEventListener('click', startMemoryGame);
+  
+  document.getElementById('memory-level-select')?.addEventListener('change', (e) => {
+    currentMemoryLevel = parseInt(e.target.value);
+    localStorage.setItem('memoryLevel', currentMemoryLevel);
+  });
+  
+  // Juego de lógica
+  document.getElementById('next-logic-btn')?.addEventListener('click', startLogicGame);
+  
+  // Autenticación
+  document.getElementById('login-btn')?.addEventListener('click', handleLogin);
+  document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
+  document.getElementById('show-signup')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('signup-form').style.display = 'block';
+  });
+  document.getElementById('show-login')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+  });
+  
+  // Perfil
+  document.getElementById('logout-button')?.addEventListener('click', handleLogout);
+  
+  // Salir del juego
+  document.getElementById('exit-game-btn')?.addEventListener('click', () => {
+    showResultModal('Salir', '¿Estás seguro de que quieres salir del juego?', 'warning', [
+      { text: 'Cancelar', action: () => {} },
+      { text: 'Salir', action: () => {
+        currentScore = 0;
+        currentStreak = 0;
+        updateScoreUI();
+        generateMathProblem();
+      }}
+    ]);
+  });
+  
+  // Modal
+  document.querySelector('.close-modal')?.addEventListener('click', () => {
+    document.getElementById('result-modal').style.display = 'none';
+  });
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === tabId);
+  });
+  
+  if (tabId === 'juego') {
+    generateMathProblem();
+  } else if (tabId === 'perfil') {
+    loadProfile();
+  }
+}
+
+function switchGameMode(mode) {
+  document.querySelectorAll('.game-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  
+  document.getElementById('math-game').style.display = mode === 'math' ? 'block' : 'none';
+  document.getElementById('memory-game-container').style.display = mode === 'memory' ? 'block' : 'none';
+  document.getElementById('logic-game-container').style.display = mode === 'logic' ? 'block' : 'none';
+  
+  if (mode === 'math') {
+    generateMathProblem();
+  } else if (mode === 'memory') {
+    startMemoryGame();
+  } else if (mode === 'logic') {
+    startLogicGame();
+    document.getElementById('next-logic-btn').style.display = 'none';
+  }
+}
+
+// ======================
+// INICIALIZACIÓN
+// ======================
+
+function loadSettings() {
+  const savedDifficulty = localStorage.getItem('gameDifficulty');
+  if (savedDifficulty) {
+    currentDifficulty = savedDifficulty;
+    const difficultySelect = document.getElementById('difficulty-select');
+    if (difficultySelect) difficultySelect.value = currentDifficulty;
   }
   
-  function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tabId);
-    });
-    
-    document.querySelectorAll('.tab-content').forEach(content => {
-      content.classList.toggle('active', content.id === tabId);
-    });
-    
-    if (tabId === 'juego') {
-      generateMathProblem();
-    } else if (tabId === 'perfil') {
-      loadProfile();
-    } else if (tabId === 'aprendizaje') {
-      initTables(); // Inicializar tablas por defecto
-    } else if (tabId === 'memoria') {
-      startMemoryGame(); // Iniciar juego de memoria al cambiar a esa pestaña
-    }
+  const savedLevel = localStorage.getItem('memoryLevel');
+  if (savedLevel) {
+    currentMemoryLevel = parseInt(savedLevel);
+    const memoryLevelSelect = document.getElementById('memory-level-select');
+    if (memoryLevelSelect) memoryLevelSelect.value = currentMemoryLevel;
   }
-  
-  // ======================
-  // INICIALIZACIÓN
-  // ======================
-  
-  function loadSettings() {
-    // Cargar configuración de sonido
-    const savedSounds = localStorage.getItem('soundsEnabled');
-    if (savedSounds !== null) {
-      soundsEnabled = savedSounds === 'true';
-      document.getElementById('sounds-toggle').checked = soundsEnabled;
-    }
-    
-    // Cargar volumen
-    const savedVolume = localStorage.getItem('volume');
-    if (savedVolume !== null) {
-      volume = parseFloat(savedVolume);
-      document.getElementById('volume-control').value = volume;
-    }
-    
-    // Cargar modo niños
-    const savedKidsMode = localStorage.getItem('kidsMode');
-    if (savedKidsMode !== null) {
-      document.getElementById('kids-mode-toggle').checked = savedKidsMode === 'true';
-      document.body.classList.toggle('kids-mode', savedKidsMode === 'true');
-    }
-    
-    // Cargar tema
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      document.getElementById('theme-selector').value = savedTheme;
-      document.body.className = savedTheme;
-    }
-    
-    // Cargar dificultad
-    const savedDifficulty = localStorage.getItem('gameDifficulty');
-    if (savedDifficulty) {
-      currentDifficulty = savedDifficulty;
-      document.getElementById('difficulty-select').value = currentDifficulty;
-    }
-    
-    // Cargar nivel de memoria
-    const savedLevel = localStorage.getItem('memoryLevel');
-    if (savedLevel) {
-      currentMemoryLevel = parseInt(savedLevel);
-      document.getElementById('memory-level-select').value = currentMemoryLevel;
-    }
-  }
-  
-  function initApp() {
-    // Configurar imágenes por defecto
-    document.querySelectorAll('img').forEach(img => {
-      img.onerror = function() {
-        if (this.id === 'profile-pic') this.src = 'assets/images/default-avatar.png';
-        if (this.classList.contains('splash-icon')) this.src = 'assets/images/default-icon.png';
-        if (this.classList.contains('math-card') || this.classList.contains('memory-card-back')) {
-          this.src = 'https://deckofcardsapi.com/static/img/back.png';
-        }
-      };
-    });
-  
-    // Configurar listeners
-    setupEventListeners();
-    
-    // Cargar ajustes
-    loadSettings();
-    
-    // Iniciar música de fondo
-    if (soundsEnabled) {
-      sounds.background.volume = volume * 0.5; // Volumen más bajo para música de fondo
-      sounds.background.play().catch(e => console.log("No se pudo reproducir música:", e));
-    }
-    
-    // Verificar autenticación
-    onAuthStateChanged(auth, (user) => {
-      currentUser = user;
-      if (user) {
-        loadProfile();
-      } else {
-        document.getElementById('auth-forms').style.display = 'block';
-        document.getElementById('profile-info').style.display = 'none';
-        document.getElementById('login-form').style.display = 'block';
-        document.getElementById('signup-form').style.display = 'none';
+}
+
+function initApp() {
+  // Configurar imágenes por defecto
+  document.querySelectorAll('img').forEach(img => {
+    img.onerror = function() {
+      if (this.id === 'profile-pic') this.src = DEFAULT_AVATAR;
+      if (this.classList.contains('splash-icon')) this.src = DEFAULT_ICON;
+      if (this.classList.contains('math-card') || this.classList.contains('memory-card-back')) {
+        this.src = 'https://deckofcardsapi.com/static/img/back.png';
       }
-    });
-    
-    // Ocultar splash screen después de 2 segundos
-    setTimeout(() => {
-      document.getElementById('splash').style.display = 'none';
-      document.getElementById('app-content').style.display = 'block';
-      generateMathProblem();
-      cardsApi.initNewDeck();
-    }, 2000);
-  }
+    };
+  });
+
+  // Configurar listeners
+  setupEventListeners();
   
-  // Iniciar la aplicación cuando el DOM esté listo
-  document.addEventListener('DOMContentLoaded', initApp);
+  // Cargar ajustes
+  loadSettings();
+  
+  // Verificar autenticación
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if (user) {
+      loadProfile();
+    } else {
+      document.getElementById('auth-forms').style.display = 'block';
+      document.getElementById('profile-info').style.display = 'none';
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('signup-form').style.display = 'none';
+    }
+  });
+  
+  // Ocultar splash screen después de 2 segundos
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    generateMathProblem();
+    cardsApi.initNewDeck();
+  }, 2000);
+}
+
+// Iniciar la aplicación cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', initApp);
