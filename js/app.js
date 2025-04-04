@@ -71,6 +71,14 @@ const profileCountrySpan = document.getElementById('profile-country');
 const profileUsernameSpan = document.getElementById('profile-username');
 const loginErrorP = document.getElementById('login-error');
 const registerErrorP = document.getElementById('register-error');
+const registerNameInput = document.getElementById('register-name');
+const registerEmailInput = document.getElementById('register-email');
+const registerPasswordInput = document.getElementById('register-password');
+const registerBirthdateInput = document.getElementById('register-birthdate');
+const registerUsernameInput = document.getElementById('register-username');
+const registerCountrySelect = document.getElementById('register-country');
+const registerInterestsInput = document.getElementById('register-interests');
+
 // Navegación y Ajustes
 const bottomNav = document.querySelector('.bottom-nav');
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -756,13 +764,13 @@ loginForm.addEventListener('submit', async (e) => {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = registerForm.registerName.value;
-    const email = registerForm.registerEmail.value;
-    const password = registerForm.registerPassword.value;
-    const birthdate = registerForm.registerBirthdate.value;
-    const username = registerForm.registerUsername.value;
-    const country = registerForm.registerCountry.value;
-    const interests = registerForm.registerInterests.value;
+    const name = registerNameInput.value;
+    const email = registerEmailInput.value;
+    const password = registerPasswordInput.value;
+    const birthdate = registerBirthdateInput.value;
+    const username = registerUsernameInput.value;
+    const country = registerCountrySelect.value;
+    const interests = registerInterestsInput.value;
     registerErrorP.style.display = 'none'; // Ocultar errores previos
 
     if (password.length < 6) {
@@ -783,7 +791,6 @@ registerForm.addEventListener('submit', async (e) => {
         registerErrorP.style.display = 'block';
     }
 });
-
 logoutButton.addEventListener('click', async () => {
     try {
         await signOut(auth);
