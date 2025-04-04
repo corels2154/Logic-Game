@@ -14,7 +14,7 @@
 <body>
     <div class="splash-screen" id="splash">
         <div class="splash-content">
-            <img src="assets/images/iconlg.jpeg" alt="App Icon" class="splash-icon" onerror="this.style.display='none'">
+            <img src="assets/images/iconlg.jpeg" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
             <h1>Diviertete aprendiendo</h1>
             <p>Cargando diversión matemática...</p>
             <div class="spinner"></div>
@@ -175,7 +175,7 @@
                 <div id="profile-info" style="display:none;">
                     <h2><i class="fas fa-user"></i> Mi perfil</h2>
                     <div class="profile-card">
-                        <img id="profile-pic" src="assets/images/default-avatar.png" alt="Foto de perfil">
+                        <img id="profile-pic" src="assets/images/avatar.png" alt="Foto de perfil" onerror="this.src='assets/images/default-avatar.png'">
                         <h3 id="profile-name">Nombre usuario</h3>
                         <p id="profile-email">correo@ejemplo.com</p>
                         

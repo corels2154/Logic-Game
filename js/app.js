@@ -22,26 +22,20 @@ import {
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
 
-// Configuración de Firebase (completa con tus credenciales)
+// Configuración de Firebase (debes completar con tus credenciales)
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "logic-game-2bec1.firebaseapp.com",
-  projectId: "logic-game-2bec1",
-  storageBucket: "logic-game-2bec1.firebasestorage.app",
-  messagingSenderId: "49694670172",
-  appId: "TU_APP_ID"
-};
+    apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
+    authDomain: "logic-game-2bec1.firebaseapp.com",
+    projectId: "logic-game-2bec1",
+    storageBucket: "logic-game-2bec1.firebasestorage.app",
+    messagingSenderId: "49694670172",
+    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
+  };
 
 // Inicialización de Firebase
-let app, auth, db;
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-} catch (error) {
-  console.error("Error inicializando Firebase:", error);
-  showErrorScreen("Error de conexión con Firebase");
-}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Variables globales del juego
 let currentUser = null;
@@ -75,6 +69,8 @@ const cardsApi = {
     try {
       const response = await fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1');
       const data = await response.json();
+      if (!data.success) throw new Error("No se pudo crear la baraja");
+      
       this.currentDeckId = data.deck_id;
       this.remainingCards = data.remaining;
       return data;
@@ -85,13 +81,17 @@ const cardsApi = {
   },
 
   async drawCards(count = 1) {
-    if (!this.currentDeckId || this.remainingCards < count) {
-      await this.initNewDeck();
-    }
-    
     try {
+      // Si no hay baraja o no hay suficientes cartas, crear una nueva
+      if (!this.currentDeckId || this.remainingCards < count) {
+        await this.initNewDeck();
+      }
+      
       const response = await fetch(`https://deckofcardsapi.com/api/deck/${this.currentDeckId}/draw/?count=${count}`);
       const data = await response.json();
+      
+      if (!data.success) throw new Error("No se pudieron obtener cartas");
+      
       this.remainingCards = data.remaining;
       return data;
     } catch (error) {
@@ -112,20 +112,17 @@ async function generateMathProblem() {
     updateTimerUI();
     
     const data = await cardsApi.drawCards(2);
+    const [card1, card2] = data.cards;
     
-    if (data.success && data.cards.length === 2) {
-      updateGameUI();
-      
-      const card1 = data.cards[0];
-      const card2 = data.cards[1];
-      const value1 = cardValueToNumber(card1.value);
-      const value2 = cardValueToNumber(card2.value);
-      const operation = mathOperations[Math.floor(Math.random() * mathOperations.length)];
-      
-      currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
-      displayMathProblem();
-      startGameTimer();
-    }
+    updateGameUI();
+    
+    const value1 = cardValueToNumber(card1.value);
+    const value2 = cardValueToNumber(card2.value);
+    const operation = mathOperations[Math.floor(Math.random() * mathOperations.length)];
+    
+    currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
+    displayMathProblem();
+    startGameTimer();
   } catch (error) {
     console.error("Error generando problema matemático:", error);
     showResultModal('Error', 'No se pudo crear el problema. Intenta de nuevo.', 'error');
@@ -150,56 +147,61 @@ function createMathProblem(value1, value2, operation, card1, card2) {
       answer = value1 * value2;
       break;
     case 'division':
-      if (value2 === 0) value2 = 1;
+      if (value2 === 0) value2 = 1; // Evitar división por cero
       answer = Math.round((value1 / value2) * 10) / 10;
       problemText = `${value1} ÷ ${value2}`;
       break;
   }
   
   return {
-    card1: card1,
-    card2: card2,
+    card1,
+    card2,
     problem: problemText,
-    answer: answer,
-    operation: operation
+    answer,
+    operation
   };
 }
 
 function cardValueToNumber(value) {
-  switch(value) {
-    case 'ACE': return 1;
-    case 'JACK': return 11;
-    case 'QUEEN': return 12;
-    case 'KING': return 13;
-    default: return parseInt(value) || 0;
-  }
+  const valuesMap = {
+    'ACE': 1,
+    'JACK': 11,
+    'QUEEN': 12,
+    'KING': 13
+  };
+  return valuesMap[value] || parseInt(value) || 0;
 }
 
 function displayMathProblem() {
   if (!currentMathProblem) return;
   
+  const { card1, card2, operation, problem, answer } = currentMathProblem;
+  
+  // Mostrar cartas
   const cardDisplay = document.getElementById('card-display');
   if (cardDisplay) {
     cardDisplay.innerHTML = `
       <div class="math-card">
-        <img src="${currentMathProblem.card1.image}" alt="${currentMathProblem.card1.value}">
-        <span class="math-symbol">${getOperationSymbol(currentMathProblem.operation)}</span>
-        <img src="${currentMathProblem.card2.image}" alt="${currentMathProblem.card2.value}">
+        <img src="${card1.image}" alt="${card1.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+        <span class="math-symbol">${getOperationSymbol(operation)}</span>
+        <img src="${card2.image}" alt="${card2.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
         <span class="math-symbol">=</span>
         <span class="question-mark">?</span>
       </div>
     `;
   }
   
+  // Mostrar problema
   const problemDisplay = document.getElementById('problem-display');
   if (problemDisplay) {
-    problemDisplay.innerHTML = `<h3>${currentMathProblem.problem} = ?</h3>`;
+    problemDisplay.innerHTML = `<h3>${problem} = ?</h3>`;
   }
   
+  // Mostrar opciones de respuesta
   const answerOptions = document.getElementById('answer-options');
   if (answerOptions) {
     answerOptions.innerHTML = '';
-    const answers = generateAnswerOptions(currentMathProblem.answer, 4);
+    const answers = generateAnswerOptions(answer, 4);
     
     answers.forEach(answer => {
       const button = document.createElement('button');
@@ -218,9 +220,11 @@ function checkMathAnswer(event) {
   
   if (isCorrect) {
     currentStreak++;
-    currentScore += calculatePoints();
+    const pointsEarned = calculatePoints();
+    currentScore += pointsEarned;
+    
     event.target.classList.add('correct');
-    showResultModal('¡Correcto!', `Ganaste ${calculatePoints()} puntos. Racha: ${currentStreak}`, 'success');
+    showResultModal('¡Correcto!', `Ganaste ${pointsEarned} puntos. Racha: ${currentStreak}`, 'success');
     updateScoreUI();
     
     if (currentUser) saveMathProgress(currentMathProblem.operation, true);
@@ -230,6 +234,7 @@ function checkMathAnswer(event) {
     currentStreak = 0;
     event.target.classList.add('incorrect');
     
+    // Mostrar la respuesta correcta
     document.querySelectorAll('.answer-btn').forEach(btn => {
       if (parseFloat(btn.dataset.answer) === currentMathProblem.answer) {
         btn.classList.add('correct');
@@ -244,11 +249,13 @@ function checkMathAnswer(event) {
 }
 
 function calculatePoints() {
-  let basePoints = 10;
-  switch(currentDifficulty) {
-    case 'facil': basePoints = 5; break;
-    case 'dificil': basePoints = 20; break;
-  }
+  const difficultyPoints = {
+    'facil': 5,
+    'medio': 10,
+    'dificil': 20
+  };
+  
+  const basePoints = difficultyPoints[currentDifficulty] || 10;
   const streakBonus = Math.min(currentStreak * 2, 20);
   return basePoints + streakBonus;
 }
@@ -259,12 +266,14 @@ function calculatePoints() {
 
 async function startMemoryGame() {
   try {
+    // Inicializar variables del juego
     totalPairs = getPairCountByLevel(currentMemoryLevel);
     matchedPairs = 0;
     memoryMoves = 0;
     memoryGameTime = 0;
     flippedCards = [];
     
+    // Actualizar UI
     const memoryGameDiv = document.getElementById('memory-game');
     const memoryResultDiv = document.getElementById('memory-result');
     const startMemoryButton = document.getElementById('start-memory-button');
@@ -273,10 +282,11 @@ async function startMemoryGame() {
     if (memoryResultDiv) memoryResultDiv.innerHTML = '';
     if (startMemoryButton) startMemoryButton.disabled = true;
     
+    // Obtener cartas
     const drawData = await cardsApi.drawCards(totalPairs);
-    if (!drawData.success) throw new Error("No se pudieron obtener cartas");
-    
     memoryCards = prepareMemoryCards(drawData.cards);
+    
+    // Renderizar tablero
     renderMemoryBoard();
     startMemoryTimer();
     memoryGameActive = true;
@@ -291,22 +301,25 @@ async function startMemoryGame() {
 }
 
 function getPairCountByLevel(level) {
-  switch(level) {
-    case 1: return 4;
-    case 2: return 6;
-    case 3: return 8;
-    case 4: return 10;
-    case 5: return 12;
-    default: return 4;
-  }
+  const levels = {
+    1: 4,   // Principiante
+    2: 6,   // Intermedio
+    3: 8,   // Avanzado
+    4: 10,  // Experto
+    5: 12   // Maestro
+  };
+  return levels[level] || 4;
 }
 
 function prepareMemoryCards(cards) {
   const pairedCards = [];
+  
   cards.forEach(card => {
-    pairedCards.push({...card, matchCode: `${card.value}-${card.suit}`, isFlipped: false, isMatched: false});
-    pairedCards.push({...card, matchCode: `${card.value}-${card.suit}`, isFlipped: false, isMatched: false});
+    const matchCode = `${card.value}-${card.suit}`;
+    pairedCards.push({...card, matchCode, isFlipped: false, isMatched: false});
+    pairedCards.push({...card, matchCode, isFlipped: false, isMatched: false});
   });
+  
   return shuffleArray(pairedCards);
 }
 
@@ -329,7 +342,7 @@ function renderMemoryBoard() {
           <img src="https://deckofcardsapi.com/static/img/back.png" alt="Carta boca abajo">
         </div>
         <div class="memory-card-back">
-          <img src="${card.image}" alt="${card.value} of ${card.suit}">
+          <img src="${card.image}" alt="${card.value} of ${card.suit}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
         </div>
       </div>
     `;
@@ -351,26 +364,9 @@ function handleMemoryCardClick(index) {
     memoryGameActive = false;
     
     if (checkForMatch()) {
-      matchedPairs++;
-      flippedCards.forEach(i => {
-        memoryCards[i].isMatched = true;
-        const cardElement = document.querySelector(`.memory-card[data-index="${i}"]`);
-        if (cardElement) cardElement.classList.add('matched');
-      });
-      
-      flippedCards = [];
-      
-      if (matchedPairs === totalPairs) {
-        endMemoryGame(true);
-      } else {
-        memoryGameActive = true;
-      }
+      handleMatch();
     } else {
-      setTimeout(() => {
-        flippedCards.forEach(i => flipCard(i, false));
-        flippedCards = [];
-        memoryGameActive = true;
-      }, 1000);
+      handleMismatch();
     }
   }
 }
@@ -378,49 +374,76 @@ function handleMemoryCardClick(index) {
 function flipCard(index, show) {
   const cardElement = document.querySelector(`.memory-card[data-index="${index}"]`);
   if (cardElement) {
-    if (show) {
-      cardElement.classList.add('flipped');
-      memoryCards[index].isFlipped = true;
-    } else {
-      cardElement.classList.remove('flipped');
-      memoryCards[index].isFlipped = false;
-    }
+    cardElement.classList.toggle('flipped', show);
+    memoryCards[index].isFlipped = show;
   }
 }
 
 function checkForMatch() {
-  return flippedCards.length === 2 && 
-         memoryCards[flippedCards[0]].matchCode === memoryCards[flippedCards[1]].matchCode;
+  return memoryCards[flippedCards[0]].matchCode === memoryCards[flippedCards[1]].matchCode;
+}
+
+function handleMatch() {
+  matchedPairs++;
+  
+  flippedCards.forEach(i => {
+    memoryCards[i].isMatched = true;
+    const cardElement = document.querySelector(`.memory-card[data-index="${i}"]`);
+    if (cardElement) cardElement.classList.add('matched');
+  });
+  
+  flippedCards = [];
+  
+  if (matchedPairs === totalPairs) {
+    endMemoryGame(true);
+  } else {
+    memoryGameActive = true;
+  }
+}
+
+function handleMismatch() {
+  setTimeout(() => {
+    flippedCards.forEach(i => flipCard(i, false));
+    flippedCards = [];
+    memoryGameActive = true;
+  }, 1000);
 }
 
 function endMemoryGame(isCompleted) {
   clearInterval(memoryTimer);
   memoryGameActive = false;
   
-  const timeBonus = Math.max(0, 300 - memoryGameTime);
-  const movesPenalty = memoryMoves * 2;
-  const levelMultiplier = currentMemoryLevel;
-  const pointsEarned = Math.max(50, (500 + timeBonus - movesPenalty) * levelMultiplier);
-  
   if (isCompleted) {
+    const pointsEarned = calculateMemoryPoints();
     currentScore += pointsEarned;
     updateScoreUI();
     
-    const memoryResultDiv = document.getElementById('memory-result');
-    if (memoryResultDiv) {
-      memoryResultDiv.innerHTML = `
-        <div class="memory-result success">
-          <h3>¡Nivel completado!</h3>
-          <p>Movimientos: ${memoryMoves}</p>
-          <p>Tiempo: ${formatTime(memoryGameTime)}</p>
-          <p>Puntos ganados: ${pointsEarned}</p>
-        </div>
-      `;
-    }
+    showMemoryResult(pointsEarned);
     
     if (currentUser) {
       saveMemoryProgress(pointsEarned, currentMemoryLevel, memoryMoves, memoryGameTime);
     }
+  }
+}
+
+function calculateMemoryPoints() {
+  const timeBonus = Math.max(0, 300 - memoryGameTime);
+  const movesPenalty = memoryMoves * 2;
+  const levelMultiplier = currentMemoryLevel;
+  return Math.max(50, (500 + timeBonus - movesPenalty) * levelMultiplier);
+}
+
+function showMemoryResult(pointsEarned) {
+  const memoryResultDiv = document.getElementById('memory-result');
+  if (memoryResultDiv) {
+    memoryResultDiv.innerHTML = `
+      <div class="memory-result success">
+        <h3>¡Nivel completado!</h3>
+        <p>Movimientos: ${memoryMoves}</p>
+        <p>Tiempo: ${formatTime(memoryGameTime)}</p>
+        <p>Puntos ganados: ${pointsEarned}</p>
+      </div>
+    `;
   }
 }
 
@@ -429,37 +452,42 @@ function endMemoryGame(isCompleted) {
 // ======================
 
 async function loadProfile() {
-  if (!currentUser) {
-    console.log("No hay usuario autenticado");
-    return;
-  }
+  if (!currentUser) return;
 
   try {
     const userDoc = await getDoc(doc(db, "users", currentUser.uid));
     
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      
-      // Actualizar UI del perfil
-      const profileName = document.getElementById('profile-name');
-      const profileEmail = document.getElementById('profile-email');
-      const profilePoints = document.getElementById('profile-points');
-      
-      if (profileName) profileName.textContent = currentUser.displayName || currentUser.email.split('@')[0];
-      if (profileEmail) profileEmail.textContent = currentUser.email;
-      if (profilePoints) profilePoints.textContent = userData.totalPoints || 0;
-      
-      // Mostrar sección de perfil
-      const authForms = document.getElementById('auth-forms');
-      const profileInfo = document.getElementById('profile-info');
-      
-      if (authForms) authForms.style.display = 'none';
-      if (profileInfo) profileInfo.style.display = 'block';
+      updateProfileUI(userData);
     }
   } catch (error) {
     console.error("Error cargando perfil:", error);
     showResultModal('Error', 'No se pudo cargar el perfil', 'error');
   }
+}
+
+function updateProfileUI(userData) {
+  const profileName = document.getElementById('profile-name');
+  const profileEmail = document.getElementById('profile-email');
+  const profilePoints = document.getElementById('profile-points');
+  const profileLevel = document.getElementById('profile-level');
+  
+  if (profileName) profileName.textContent = currentUser.displayName || currentUser.email.split('@')[0];
+  if (profileEmail) profileEmail.textContent = currentUser.email;
+  if (profilePoints) profilePoints.textContent = userData.totalPoints || 0;
+  if (profileLevel) profileLevel.textContent = calculateLevel(userData.totalPoints || 0);
+  
+  // Mostrar sección de perfil
+  const authForms = document.getElementById('auth-forms');
+  const profileInfo = document.getElementById('profile-info');
+  
+  if (authForms) authForms.style.display = 'none';
+  if (profileInfo) profileInfo.style.display = 'block';
+}
+
+function calculateLevel(points) {
+  return Math.floor(points / 1000) + 1;
 }
 
 // ======================
@@ -526,6 +554,7 @@ function updateTimerUI() {
   const timeLeftDisplay = document.getElementById('time-left');
   if (timeLeftDisplay) {
     timeLeftDisplay.textContent = timeLeft;
+    timeLeftDisplay.style.color = timeLeft <= 10 ? 'red' : '';
   }
 }
 
@@ -580,13 +609,13 @@ function shuffleArray(array) {
 }
 
 function getOperationSymbol(operation) {
-  switch(operation) {
-    case 'suma': return '+';
-    case 'resta': return '-';
-    case 'multiplicacion': return '×';
-    case 'division': return '÷';
-    default: return '?';
-  }
+  const symbols = {
+    'suma': '+',
+    'resta': '-',
+    'multiplicacion': '×',
+    'division': '÷'
+  };
+  return symbols[operation] || '?';
 }
 
 function generateAnswerOptions(correctAnswer, numOptions) {
@@ -627,7 +656,7 @@ async function handleLogin() {
     showResultModal('Éxito', 'Inicio de sesión correcto', 'success');
   } catch (error) {
     console.error("Error al iniciar sesión:", error);
-    showResultModal('Error', 'Usuario o contraseña incorrectos', 'error');
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
   }
 }
 
@@ -644,7 +673,7 @@ async function handleSignup() {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     await setDoc(doc(db, "users", userCredential.user.uid), {
-      email: email,
+      email,
       totalPoints: 0,
       mathPoints: 0,
       memoryPoints: 0,
@@ -656,8 +685,22 @@ async function handleSignup() {
     showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
   } catch (error) {
     console.error("Error al registrar:", error);
-    showResultModal('Error', error.message, 'error');
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
   }
+}
+
+function getAuthErrorMessage(errorCode) {
+  const messages = {
+    'auth/invalid-email': 'El correo electrónico no es válido',
+    'auth/user-disabled': 'Esta cuenta ha sido deshabilitada',
+    'auth/user-not-found': 'No existe una cuenta con este correo',
+    'auth/wrong-password': 'Contraseña incorrecta',
+    'auth/email-already-in-use': 'Este correo ya está registrado',
+    'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
+    'auth/operation-not-allowed': 'Esta operación no está permitida'
+  };
+  
+  return messages[errorCode] || 'Ocurrió un error inesperado';
 }
 
 async function handleLogout() {
@@ -685,7 +728,7 @@ async function saveMathProgress(operation, isCorrect) {
       streak: currentStreak
     });
     
-    await updateUserStats(isCorrect ? 1 : 0, 0, currentStreak);
+    await updateUserStats(isCorrect ? calculatePoints() : 0, 0, currentStreak);
   } catch (error) {
     console.error("Error guardando progreso matemático:", error);
   }
@@ -727,8 +770,8 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
       totalPoints: currentTotal + mathPoints + memoryPoints,
       mathPoints: currentMath + mathPoints,
       memoryPoints: currentMemory + memoryPoints,
-      bestStreak: bestStreak,
-      gamesPlayed: gamesPlayed,
+      bestStreak,
+      gamesPlayed,
       lastPlayed: serverTimestamp()
     }, { merge: true });
     
@@ -739,7 +782,7 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
 }
 
 // ======================
-// INICIALIZACIÓN
+// MANEJO DE EVENTOS
 // ======================
 
 function setupEventListeners() {
@@ -754,53 +797,37 @@ function setupEventListeners() {
   });
   
   // Juego matemático
-  const shuffleButton = document.getElementById('shuffle-button');
-  const drawButton = document.getElementById('draw-button');
-  const difficultySelect = document.getElementById('difficulty-select');
+  document.getElementById('shuffle-button')?.addEventListener('click', async () => {
+    await cardsApi.initNewDeck();
+    updateGameUI();
+  });
   
-  if (shuffleButton) {
-    shuffleButton.addEventListener('click', async () => {
-      await cardsApi.initNewDeck();
-      updateGameUI();
-    });
-  }
+  document.getElementById('draw-button')?.addEventListener('click', generateMathProblem);
   
-  if (drawButton) {
-    drawButton.addEventListener('click', generateMathProblem);
-  }
-  
-  if (difficultySelect) {
-    difficultySelect.addEventListener('change', (e) => {
-      currentDifficulty = e.target.value;
-      localStorage.setItem('gameDifficulty', currentDifficulty);
-      if (currentMathProblem) generateMathProblem();
-    });
-  }
+  document.getElementById('difficulty-select')?.addEventListener('change', (e) => {
+    currentDifficulty = e.target.value;
+    localStorage.setItem('gameDifficulty', currentDifficulty);
+    if (currentMathProblem) generateMathProblem();
+  });
   
   // Juego de memoria
-  const startMemoryButton = document.getElementById('start-memory-button');
-  if (startMemoryButton) {
-    startMemoryButton.addEventListener('click', startMemoryGame);
-  }
+  document.getElementById('start-memory-button')?.addEventListener('click', startMemoryGame);
+  
+  document.getElementById('memory-level-select')?.addEventListener('change', (e) => {
+    currentMemoryLevel = parseInt(e.target.value);
+    localStorage.setItem('memoryLevel', currentMemoryLevel);
+  });
   
   // Perfil
-  const logoutButton = document.getElementById('logout-button');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', handleLogout);
-  }
+  document.getElementById('logout-button')?.addEventListener('click', handleLogout);
   
   // Modal
-  const modalButton = document.getElementById('modal-button');
-  if (modalButton) {
-    modalButton.addEventListener('click', () => {
-      const resultModal = document.getElementById('result-modal');
-      if (resultModal) resultModal.style.display = 'none';
-    });
-  }
+  document.getElementById('modal-button')?.addEventListener('click', () => {
+    document.getElementById('result-modal').style.display = 'none';
+  });
   
   document.querySelector('.close-modal')?.addEventListener('click', () => {
-    const resultModal = document.getElementById('result-modal');
-    if (resultModal) resultModal.style.display = 'none';
+    document.getElementById('result-modal').style.display = 'none';
   });
 }
 
@@ -830,13 +857,9 @@ function switchGameMode(mode) {
   });
   
   // Mostrar el modo seleccionado
-  const mathGame = document.getElementById('math-game');
-  const memoryGame = document.getElementById('memory-game-container');
-  const logicGame = document.getElementById('logic-game-container');
-  
-  if (mathGame) mathGame.style.display = mode === 'math' ? 'block' : 'none';
-  if (memoryGame) memoryGame.style.display = mode === 'memory' ? 'block' : 'none';
-  if (logicGame) logicGame.style.display = mode === 'logic' ? 'block' : 'none';
+  document.getElementById('math-game').style.display = mode === 'math' ? 'block' : 'none';
+  document.getElementById('memory-game-container').style.display = mode === 'memory' ? 'block' : 'none';
+  document.getElementById('logic-game-container').style.display = mode === 'logic' ? 'block' : 'none';
   
   if (mode === 'math') {
     generateMathProblem();
@@ -844,6 +867,10 @@ function switchGameMode(mode) {
     startMemoryGame();
   }
 }
+
+// ======================
+// INICIALIZACIÓN
+// ======================
 
 function loadSettings() {
   const savedDifficulty = localStorage.getItem('gameDifficulty');
@@ -867,6 +894,9 @@ function initApp() {
     img.onerror = function() {
       if (this.id === 'profile-pic') this.src = DEFAULT_AVATAR;
       if (this.classList.contains('splash-icon')) this.src = DEFAULT_ICON;
+      if (this.classList.contains('math-card') || this.classList.contains('memory-card-back')) {
+        this.src = 'https://deckofcardsapi.com/static/img/back.png';
+      }
     };
   });
 
@@ -882,23 +912,15 @@ function initApp() {
     if (user) {
       loadProfile();
     } else {
-      const authForms = document.getElementById('auth-forms');
-      const profileInfo = document.getElementById('profile-info');
-      
-      if (authForms) authForms.style.display = 'block';
-      if (profileInfo) profileInfo.style.display = 'none';
+      document.getElementById('auth-forms').style.display = 'block';
+      document.getElementById('profile-info').style.display = 'none';
     }
   });
   
   // Ocultar splash screen después de 2 segundos
   setTimeout(() => {
-    const splashScreen = document.getElementById('splash');
-    const appContent = document.getElementById('app-content');
-    
-    if (splashScreen) splashScreen.style.display = 'none';
-    if (appContent) appContent.style.display = 'block';
-    
-    // Iniciar el juego matemático por defecto
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
     generateMathProblem();
   }, 2000);
 }
