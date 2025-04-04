@@ -165,13 +165,13 @@ function showErrorScreen() {
 async function initFirebase() {
     try {
         const firebaseConfig = {
-            apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
+            apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
             authDomain: "logic-game-2bec1.firebaseapp.com",
             projectId: "logic-game-2bec1",
             storageBucket: "logic-game-2bec1.firebasestorage.app",
             messagingSenderId: "49694670172",
             appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-        };
+          };
         
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
