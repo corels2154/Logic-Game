@@ -17,7 +17,7 @@ const firebaseConfig = {
   };
 
 
-// Inicializar Firebase
+/// Inicializar Firebase
 let app, auth, db;
 try {
     app = initializeApp(firebaseConfig);
@@ -71,13 +71,6 @@ const profileCountrySpan = document.getElementById('profile-country');
 const profileUsernameSpan = document.getElementById('profile-username');
 const loginErrorP = document.getElementById('login-error');
 const registerErrorP = document.getElementById('register-error');
-const registerNameInput = document.getElementById('register-name');
-const registerEmailInput = document.getElementById('register-email');
-const registerPasswordInput = document.getElementById('register-password');
-const registerBirthdateInput = document.getElementById('register-birthdate');
-const registerUsernameInput = document.getElementById('register-username');
-const registerCountrySelect = document.getElementById('register-country');
-const registerInterestsInput = document.getElementById('register-interests');
 // Navegación y Ajustes
 const bottomNav = document.querySelector('.bottom-nav');
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -763,13 +756,13 @@ loginForm.addEventListener('submit', async (e) => {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = registerNameInput.value;
-    const email = registerEmailInput.value;
-    const password = registerPasswordInput.value;
-    const birthdate = registerBirthdateInput.value;
-    const username = registerUsernameInput.value;
-    const country = registerCountrySelect.value;
-    const interests = registerInterestsInput.value;
+    const name = registerForm.registerName.value;
+    const email = registerForm.registerEmail.value;
+    const password = registerForm.registerPassword.value;
+    const birthdate = registerForm.registerBirthdate.value;
+    const username = registerForm.registerUsername.value;
+    const country = registerForm.registerCountry.value;
+    const interests = registerForm.registerInterests.value;
     registerErrorP.style.display = 'none'; // Ocultar errores previos
 
     if (password.length < 6) {
@@ -794,11 +787,11 @@ registerForm.addEventListener('submit', async (e) => {
 logoutButton.addEventListener('click', async () => {
     try {
         await signOut(auth);
-        console.log("Usuario ha cerrado sesión.");
+        console.log("Usuario cerró sesión.");
         // auth.onAuthStateChanged se encargará de actualizar la UI
     } catch (error) {
         console.error("Error al cerrar sesión:", error);
-        alert("Hubo un error al cerrar sesión.");
+        alert("Error al cerrar sesión.");
     }
 });
 
@@ -814,16 +807,33 @@ showLoginLink.addEventListener('click', (e) => {
     loginFormContainer.style.display = 'block';
 });
 
+function traducirErrorAuth(errorCode) {
+    switch (errorCode) {
+        case 'auth/email-already-in-use':
+            return 'Este correo electrónico ya está en uso.';
+        case 'auth/invalid-email':
+            return 'El correo electrónico no es válido.';
+        case 'auth/wrong-password':
+            return 'Contraseña incorrecta.';
+        case 'auth/user-not-found':
+            return 'No se encontró usuario con este correo electrónico.';
+        case 'auth/weak-password':
+            return 'La contraseña es demasiado débil.';
+        default:
+            return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+    }
+}
+
 // ======================
-// FUNCIONES DE UTILIDAD Y UI
+// FUNCIONES DE UTILIDAD Y EVENT LISTENERS INICIALES
 // ======================
 
 function translateSuit(suit) {
     switch (suit) {
-        case 'SPADES': return 'Picas';
+        case 'HEARTS': return 'Corazones';
         case 'DIAMONDS': return 'Diamantes';
         case 'CLUBS': return 'Tréboles';
-        case 'HEARTS': return 'Corazones';
+        case 'SPADES': return 'Picas';
         default: return suit;
     }
 }
@@ -831,91 +841,56 @@ function translateSuit(suit) {
 function translateValue(value) {
     switch (value) {
         case 'ACE': return 'As';
-        case 'JACK': return 'Jota';
-        case 'QUEEN': return 'Reina';
         case 'KING': return 'Rey';
+        case 'QUEEN': return 'Reina';
+        case 'JACK': return 'Jota';
         default: return value;
     }
 }
 
 function updateGameUI() {
-    remainingCardsSpan.textContent = remainingCards;
+  remainingCardsSpan.textContent = remainingCards;
 }
 
-// --- Navegación por pestañas ---
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        const targetId = button.dataset.tab;
+// --- Event listeners ---
+drawButton.addEventListener('click', drawCardAction);
+shuffleButton.addEventListener('click', initDeck);
+suitFilterSelect.addEventListener('change', (e) => loadFavorites(e.target.value, searchInput.value));
+searchInput.addEventListener('input', (e) => loadFavorites(suitFilterSelect.value, e.target.value));
+startMemoryButton.addEventListener('click', startMemoryGame);
 
-        // Desactivar todos los botones y ocultar todos los contenidos
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.style.display = 'none');
-
-        // Activar el botón actual y mostrar el contenido correspondiente
-        button.classList.add('active');
-        document.getElementById(targetId).style.display = 'block';
-
-        // Si se hace clic en la pestaña de favoritos, cargar los favoritos
-        if (targetId === 'favorites') {
-            loadFavorites(suitFilterSelect.value, searchInput.value);
-        } else if (targetId === 'memory') {
-            // No iniciar el juego automáticamente al mostrar la pestaña
-        } else if (targetId === 'perfil') {
-            loadProfileDetails(); // Recargar info del perfil al mostrar la pestaña
-        }
-    });
-});
-
-// --- Inicializar la primera pestaña como activa ---
-document.addEventListener('DOMContentLoaded', () => {
-    const defaultTab = document.querySelector('.tab-btn[data-tab="game"]');
-    if (defaultTab) {
-        defaultTab.click();
-    }
-    initDeck(); // Inicializar la baraja al cargar la página
-});
-
-// --- Filtro de palos en favoritos ---
-suitFilterSelect.addEventListener('change', () => {
-    loadFavorites(suitFilterSelect.value, searchInput.value);
-});
-
-// --- Búsqueda en favoritos ---
-searchInput.addEventListener('input', () => {
-    loadFavorites(suitFilterSelect.value, searchInput.value);
-});
-
-// --- Selector de tema (placeholder) ---
-themeSelector.addEventListener('change', (event) => {
-    const theme = event.target.value;
-    document.body.setAttribute('data-theme', theme);
-    console.log("Tema seleccionado:", theme);
-    // Aquí podrías guardar la preferencia del usuario en localStorage o Firebase
-});
-
-// --- Event listener para iniciar el juego de memoria ---
-startMemoryButton.addEventListener('click', () => {
-    currentMemoryLevel = parseInt(memoryLevelSelect.value); // Obtener nivel del selector
-    startMemoryGame();
-});
-
-// --- Event listener para el selector de nivel de memoria ---
-memoryLevelSelect.addEventListener('change', (event) => {
-    currentMemoryLevel = parseInt(event.target.value);
+// --- Selector de nivel de memoria ---
+memoryLevelSelect.addEventListener('change', function() {
+    currentMemoryLevel = parseInt(this.value);
     console.log("Nivel de memoria seleccionado:", currentMemoryLevel);
-    // No iniciar el juego automáticamente al cambiar el nivel, el usuario debe presionar "Comenzar"
 });
 
-// Inicializar el selector de nivel de memoria con los valores correctos
+// --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
-    const levelSelect = document.getElementById('memory-level-select');
-    if (levelSelect) {
-        for (let i = 1; i <= 5; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = `Nivel ${i}`;
-            levelSelect.appendChild(option);
+    setTimeout(() => {
+        splashScreen.style.display = 'none';
+        appContent.style.display = 'block';
+        initDeck(); // Inicializar la baraja al cargar la aplicación
+        // Inicializar el nivel del juego de memoria al cargar la página
+        const initialMemoryLevel = parseInt(memoryLevelSelect.value);
+        if (!isNaN(initialMemoryLevel)) {
+            currentMemoryLevel = initialMemoryLevel;
+            console.log("Nivel de memoria inicializado a:", currentMemoryLevel);
         }
-        levelSelect.value = currentMemoryLevel; // Establecer el nivel inicial
+    }, 2000); // Simula un tiempo de carga
+});
+
+// --- Navegación por pestañas ---
+bottomNav.addEventListener('click', (event) => {
+    if (event.target.classList.contains('tab-btn')) {
+        const tab = event.target.dataset.tab;
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(tab).classList.add('active');
+        // Cargar datos específicos al cambiar de pestaña si es necesario
+        if (tab === 'favoritos') {
+            loadFavorites(suitFilterSelect.value, searchInput.value);
+        }
     }
 });
