@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logic_Game</title>
-
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Favicon simple -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
 </head>
 <body>
     <div class="splash-screen" id="splash">
         <div class="splash-content">
-            <img src="assets/images/iconlg.jpeg" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
+            <img src="assets/images/logo.png" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
             <h1>Diviertete aprendiendo</h1>
             <p>Cargando diversión matemática...</p>
             <div class="spinner"></div>
@@ -26,6 +24,7 @@
             <div class="header-content">
                 <h1><i class="fas fa-calculator"></i> Diviertete aprendiendo</h1>
                 <div class="user-info" id="user-info"></div>
+                <button id="exit-game-btn" class="btn exit-btn"><i class="fas fa-sign-out-alt"></i> Salir</button>
             </div>
             <div class="search-container">
                 <input type="text" id="search" placeholder="Buscar cartas o problemas...">
@@ -37,7 +36,6 @@
         </header>
 
         <main>
-            <!-- Pestaña de Juego Principal -->
             <section id="juego" class="tab-content active">
                 <h2><i class="fas fa-gamepad"></i> Modo Aventura</h2>
                 <div class="game-mode-selector">
@@ -58,11 +56,36 @@
                 </div>
                 
                 <div id="memory-game-container" class="game-container" style="display:none;">
-                    <!-- Contenido del juego de memoria -->
+                    <div class="memory-controls">
+                        <label for="memory-level-select">Nivel:</label>
+                        <select id="memory-level-select">
+                            <option value="1">Principiante (4 pares)</option>
+                            <option value="2">Intermedio (6 pares)</option>
+                            <option value="3">Avanzado (8 pares)</option>
+                            <option value="4">Experto (10 pares)</option>
+                            <option value="5">Maestro (12 pares)</option>
+                        </select>
+                        <button id="start-memory-button" class="btn primary">
+                            <i class="fas fa-play"></i> Comenzar
+                        </button>
+                    </div>
+                    <div id="memory-game" class="memory-grid"></div>
+                    <div id="memory-result" class="result-container"></div>
+                    <div class="memory-stats">
+                        <div>Movimientos: <span id="memory-moves">0</span></div>
+                        <div>Tiempo: <span id="memory-time">00:00</span></div>
+                        <div>Puntos: <span id="memory-points">0</span></div>
+                    </div>
                 </div>
                 
                 <div id="logic-game-container" class="game-container" style="display:none;">
-                    <!-- Contenido del juego de lógica -->
+                    <h3>Juego de Lógica</h3>
+                    <div class="logic-problem">
+                        <p id="logic-question">Resuelve el acertijo lógico:</p>
+                        <div id="logic-display"></div>
+                        <div class="logic-options" id="logic-options"></div>
+                    </div>
+                    <button id="next-logic-btn" class="btn primary">Siguiente problema</button>
                 </div>
                 
                 <div class="game-controls">
@@ -93,7 +116,6 @@
                 </div>
             </section>
 
-            <!-- Pestaña de Favoritos -->
             <section id="favoritos" class="tab-content">
                 <h2><i class="fas fa-heart"></i> Tus progresos (<span id="favorites-count">0</span>)</h2>
                 <div class="filter-controls">
@@ -114,32 +136,6 @@
                 <div id="favorites-list" class="favorites-grid"></div>
             </section>
 
-            <!-- Pestaña de Memoria -->
-            <section id="memoria" class="tab-content">
-                <h2><i class="fas fa-brain"></i> Entrena tu memoria</h2>
-                <div class="memory-controls">
-                    <label for="memory-level-select">Nivel:</label>
-                    <select id="memory-level-select">
-                        <option value="1">Principiante (4 pares)</option>
-                        <option value="2">Intermedio (6 pares)</option>
-                        <option value="3">Avanzado (8 pares)</option>
-                        <option value="4">Experto (10 pares)</option>
-                        <option value="5">Maestro (12 pares)</option>
-                    </select>
-                    <button id="start-memory-button" class="btn primary">
-                        <i class="fas fa-play"></i> Comenzar
-                    </button>
-                </div>
-                <div id="memory-game" class="memory-grid"></div>
-                <div id="memory-result" class="result-container"></div>
-                <div class="memory-stats">
-                    <div>Movimientos: <span id="memory-moves">0</span></div>
-                    <div>Tiempo: <span id="memory-time">00:00</span></div>
-                    <div>Puntos: <span id="memory-points">0</span></div>
-                </div>
-            </section>
-
-            <!-- Pestaña de Aprendizaje -->
             <section id="aprendizaje" class="tab-content">
                 <h2><i class="fas fa-book-open"></i> Aprende</h2>
                 <div class="learn-tabs">
@@ -151,25 +147,58 @@
                 
                 <div id="multiplicacion-content" class="learn-content active">
                     <h3>Tablas de multiplicar</h3>
-                    <div class="tables-grid">
-                        <!-- Se generará dinámicamente -->
-                    </div>
+                    <div class="tables-grid" id="tables-grid"></div>
                 </div>
                 
                 <div id="fracciones-content" class="learn-content">
                     <h3>Fracciones con cartas</h3>
-                    <div class="fraction-game">
-                        <!-- Contenido de fracciones -->
-                    </div>
+                    <div class="fraction-game" id="fraction-game"></div>
                 </div>
                 
-                <!-- Otras secciones de aprendizaje -->
+                <div id="porcentajes-content" class="learn-content">
+                    <h3>Porcentajes</h3>
+                    <div class="percentage-game" id="percentage-game"></div>
+                </div>
+                
+                <div id="algebra-content" class="learn-content">
+                    <h3>Álgebra básica</h3>
+                    <div class="algebra-game" id="algebra-game"></div>
+                </div>
             </section>
 
-            <!-- Pestaña de Perfil -->
             <section id="perfil" class="tab-content">
                 <div id="auth-forms">
-                    <!-- Formularios existentes -->
+                    <div class="auth-form" id="login-form">
+                        <h2><i class="fas fa-sign-in-alt"></i> Iniciar sesión</h2>
+                        <div class="form-group">
+                            <label for="login-email">Email:</label>
+                            <input type="email" id="login-email" placeholder="tu@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Contraseña:</label>
+                            <input type="password" id="login-password" placeholder="Contraseña">
+                        </div>
+                        <button id="login-btn" class="btn primary">Iniciar sesión</button>
+                        <p class="auth-switch">¿No tienes cuenta? <a href="#" id="show-signup">Regístrate</a></p>
+                    </div>
+                    
+                    <div class="auth-form" id="signup-form" style="display:none;">
+                        <h2><i class="fas fa-user-plus"></i> Registrarse</h2>
+                        <div class="form-group">
+                            <label for="signup-email">Email:</label>
+                            <input type="email" id="signup-email" placeholder="tu@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-password">Contraseña:</label>
+                            <input type="password" id="signup-password" placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-username">Nombre de usuario:</label>
+                            <input type="text" id="signup-username" placeholder="Cómo te llamaremos">
+                        </div>
+                        <button id="signup-btn" class="btn primary">Registrarse</button>
+                        <p class="auth-switch">¿Ya tienes cuenta? <a href="#" id="show-login">Inicia sesión</a></p>
+                    </div>
                 </div>
 
                 <div id="profile-info" style="display:none;">
@@ -209,7 +238,6 @@
                 </div>
             </section>
 
-            <!-- Pestaña de Ajustes -->
             <section id="ajustes" class="tab-content">
                 <h2><i class="fas fa-cog"></i> Ajustes</h2>
                 <div class="settings-container">
@@ -267,7 +295,6 @@
         </nav>
     </div>
 
-    <!-- Modal para resultados -->
     <div id="result-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>

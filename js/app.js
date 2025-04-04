@@ -6,7 +6,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  updateProfile
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 import { 
   getFirestore, 
@@ -22,15 +23,15 @@ import {
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
 
-// Configuración de Firebase (debes completar con tus credenciales)
+// Configuración de Firebase (completa con tus credenciales)
 const firebaseConfig = {
-    apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
-    authDomain: "logic-game-2bec1.firebaseapp.com",
-    projectId: "logic-game-2bec1",
-    storageBucket: "logic-game-2bec1.firebasestorage.app",
-    messagingSenderId: "49694670172",
-    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-  };
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_DOMINIO.firebaseapp.com",
+  projectId: "TU_PROJECT_ID",
+  storageBucket: "TU_STORAGE_BUCKET.appspot.com",
+  messagingSenderId: "TU_MESSAGING_SENDER_ID",
+  appId: "TU_APP_ID"
+};
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
@@ -56,6 +57,31 @@ let memoryMoves = 0;
 let memoryGameTime = 0;
 let memoryTimer = null;
 
+// Variables para el juego de lógica
+let currentLogicProblem = null;
+const logicProblems = [
+  {
+    question: "Si todos los gatos son animales y algunos animales son domésticos, entonces:",
+    options: [
+      "Todos los gatos son domésticos",
+      "Algunos gatos son domésticos",
+      "Ningún gato es doméstico",
+      "No se puede determinar"
+    ],
+    answer: 1
+  },
+  {
+    question: "Juan es más alto que Pedro. Pedro es más alto que Luis. ¿Quién es el más bajo?",
+    options: ["Juan", "Pedro", "Luis", "No se puede determinar"],
+    answer: 2
+  },
+  {
+    question: "Si A = 1, B = 2, C = 3, ..., Z = 26, ¿cuál es el valor de A + B + C?",
+    options: ["5", "6", "7", "8"],
+    answer: 1
+  }
+];
+
 // Temporizadores
 let gameTimer = null;
 let timeLeft = 60;
@@ -73,16 +99,17 @@ const cardsApi = {
       
       this.currentDeckId = data.deck_id;
       this.remainingCards = data.remaining;
+      updateGameUI();
       return data;
     } catch (error) {
       console.error("Error inicializando baraja:", error);
+      showResultModal('Error', 'No se pudo crear la baraja de cartas', 'error');
       throw error;
     }
   },
 
   async drawCards(count = 1) {
     try {
-      // Si no hay baraja o no hay suficientes cartas, crear una nueva
       if (!this.currentDeckId || this.remainingCards < count) {
         await this.initNewDeck();
       }
@@ -93,9 +120,11 @@ const cardsApi = {
       if (!data.success) throw new Error("No se pudieron obtener cartas");
       
       this.remainingCards = data.remaining;
+      updateGameUI();
       return data;
     } catch (error) {
       console.error("Error robando cartas:", error);
+      showResultModal('Error', 'No se pudieron obtener cartas', 'error');
       throw error;
     }
   }
@@ -113,8 +142,6 @@ async function generateMathProblem() {
     
     const data = await cardsApi.drawCards(2);
     const [card1, card2] = data.cards;
-    
-    updateGameUI();
     
     const value1 = cardValueToNumber(card1.value);
     const value2 = cardValueToNumber(card2.value);
@@ -266,14 +293,12 @@ function calculatePoints() {
 
 async function startMemoryGame() {
   try {
-    // Inicializar variables del juego
     totalPairs = getPairCountByLevel(currentMemoryLevel);
     matchedPairs = 0;
     memoryMoves = 0;
     memoryGameTime = 0;
     flippedCards = [];
     
-    // Actualizar UI
     const memoryGameDiv = document.getElementById('memory-game');
     const memoryResultDiv = document.getElementById('memory-result');
     const startMemoryButton = document.getElementById('start-memory-button');
@@ -282,11 +307,9 @@ async function startMemoryGame() {
     if (memoryResultDiv) memoryResultDiv.innerHTML = '';
     if (startMemoryButton) startMemoryButton.disabled = true;
     
-    // Obtener cartas
     const drawData = await cardsApi.drawCards(totalPairs);
     memoryCards = prepareMemoryCards(drawData.cards);
     
-    // Renderizar tablero
     renderMemoryBoard();
     startMemoryTimer();
     memoryGameActive = true;
@@ -448,6 +471,90 @@ function showMemoryResult(pointsEarned) {
 }
 
 // ======================
+// JUEGO DE LÓGICA
+// ======================
+
+function startLogicGame() {
+  if (logicProblems.length === 0) {
+    showResultModal('Info', 'No hay más problemas de lógica disponibles', 'info');
+    return;
+  }
+  
+  currentLogicProblem = logicProblems[Math.floor(Math.random() * logicProblems.length)];
+  displayLogicProblem();
+}
+
+function displayLogicProblem() {
+  if (!currentLogicProblem) return;
+  
+  const logicDisplay = document.getElementById('logic-display');
+  const logicOptions = document.getElementById('logic-options');
+  
+  if (logicDisplay) {
+    logicDisplay.innerHTML = `<p>${currentLogicProblem.question}</p>`;
+  }
+  
+  if (logicOptions) {
+    logicOptions.innerHTML = '';
+    currentLogicProblem.options.forEach((option, index) => {
+      const optionElement = document.createElement('div');
+      optionElement.className = 'logic-option';
+      optionElement.textContent = option;
+      optionElement.dataset.index = index;
+      optionElement.addEventListener('click', () => checkLogicAnswer(index));
+      logicOptions.appendChild(optionElement);
+    });
+  }
+}
+
+function checkLogicAnswer(selectedIndex) {
+  const isCorrect = selectedIndex === currentLogicProblem.answer;
+  const options = document.querySelectorAll('.logic-option');
+  
+  options.forEach((option, index) => {
+    if (index === currentLogicProblem.answer) {
+      option.classList.add('correct');
+    }
+    if (index === selectedIndex && !isCorrect) {
+      option.classList.add('incorrect');
+    }
+    option.style.pointerEvents = 'none';
+  });
+  
+  if (isCorrect) {
+    currentStreak++;
+    const pointsEarned = 15;
+    currentScore += pointsEarned;
+    updateScoreUI();
+    
+    showResultModal('¡Correcto!', `Ganaste ${pointsEarned} puntos. Racha: ${currentStreak}`, 'success');
+    if (currentUser) saveLogicProgress(true);
+  } else {
+    currentStreak = 0;
+    showResultModal('¡Ups!', `La respuesta correcta era: ${currentLogicProblem.options[currentLogicProblem.answer]}`, 'error');
+    if (currentUser) saveLogicProgress(false);
+  }
+  
+  document.getElementById('next-logic-btn').style.display = 'block';
+}
+
+async function saveLogicProgress(isCorrect) {
+  if (!currentUser) return;
+  
+  try {
+    await addDoc(collection(db, `users/${currentUser.uid}/logicProgress`), {
+      isCorrect,
+      problem: currentLogicProblem.question,
+      timestamp: serverTimestamp()
+    });
+    
+    await updateUserStats(isCorrect ? 15 : 0, 0, currentStreak);
+  } catch (error) {
+    console.error("Error guardando progreso de lógica:", error);
+  }
+}
+
+// ======================
 // FUNCIONES DEL PERFIL
 // ======================
 
@@ -478,7 +585,6 @@ function updateProfileUI(userData) {
   if (profilePoints) profilePoints.textContent = userData.totalPoints || 0;
   if (profileLevel) profileLevel.textContent = calculateLevel(userData.totalPoints || 0);
   
-  // Mostrar sección de perfil
   const authForms = document.getElementById('auth-forms');
   const profileInfo = document.getElementById('profile-info');
   
@@ -663,26 +769,37 @@ async function handleLogin() {
 async function handleSignup() {
   const email = document.getElementById('signup-email')?.value;
   const password = document.getElementById('signup-password')?.value;
+  const username = document.getElementById('signup-username')?.value;
   
-  if (!email || !password) {
-    showResultModal('Error', 'Por favor ingresa email y contraseña', 'error');
+  if (!email || !password || !username) {
+    showResultModal('Error', 'Por favor completa todos los campos', 'error');
     return;
   }
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
+    // Actualizar perfil con nombre de usuario
+    await updateProfile(auth.currentUser, {
+      displayName: username
+    });
+    
+    // Crear documento de usuario en Firestore
     await setDoc(doc(db, "users", userCredential.user.uid), {
       email,
+      username,
       totalPoints: 0,
       mathPoints: 0,
       memoryPoints: 0,
+      logicPoints: 0,
       bestStreak: 0,
       gamesPlayed: 0,
       createdAt: serverTimestamp()
     });
     
     showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
   } catch (error) {
     console.error("Error al registrar:", error);
     showResultModal('Error', getAuthErrorMessage(error.code), 'error');
@@ -706,8 +823,10 @@ function getAuthErrorMessage(errorCode) {
 async function handleLogout() {
   try {
     await signOut(auth);
+    showResultModal('Éxito', 'Sesión cerrada correctamente', 'success');
   } catch (error) {
     console.error("Error al cerrar sesión:", error);
+    showResultModal('Error', 'No se pudo cerrar la sesión', 'error');
   }
 }
 
@@ -752,7 +871,7 @@ async function saveMemoryProgress(pointsEarned, level, moves, time) {
   }
 }
 
-async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
+async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0, streak = 0) {
   if (!currentUser) return;
   
   try {
@@ -763,13 +882,15 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
     const currentTotal = currentData.totalPoints || 0;
     const currentMath = currentData.mathPoints || 0;
     const currentMemory = currentData.memoryPoints || 0;
+    const currentLogic = currentData.logicPoints || 0;
     const bestStreak = Math.max(streak, currentData.bestStreak || 0);
     const gamesPlayed = (currentData.gamesPlayed || 0) + 1;
     
     await setDoc(userRef, {
-      totalPoints: currentTotal + mathPoints + memoryPoints,
+      totalPoints: currentTotal + mathPoints + memoryPoints + logicPoints,
       mathPoints: currentMath + mathPoints,
       memoryPoints: currentMemory + memoryPoints,
+      logicPoints: currentLogic + logicPoints,
       bestStreak,
       gamesPlayed,
       lastPlayed: serverTimestamp()
@@ -799,7 +920,6 @@ function setupEventListeners() {
   // Juego matemático
   document.getElementById('shuffle-button')?.addEventListener('click', async () => {
     await cardsApi.initNewDeck();
-    updateGameUI();
   });
   
   document.getElementById('draw-button')?.addEventListener('click', generateMathProblem);
@@ -818,8 +938,35 @@ function setupEventListeners() {
     localStorage.setItem('memoryLevel', currentMemoryLevel);
   });
   
+  // Juego de lógica
+  document.getElementById('next-logic-btn')?.addEventListener('click', startLogicGame);
+  
+  // Autenticación
+  document.getElementById('login-btn')?.addEventListener('click', handleLogin);
+  document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
+  document.getElementById('show-signup')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('signup-form').style.display = 'block';
+  });
+  document.getElementById('show-login')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+  });
+  
   // Perfil
   document.getElementById('logout-button')?.addEventListener('click', handleLogout);
+  
+  // Salir del juego
+  document.getElementById('exit-game-btn')?.addEventListener('click', () => {
+    if (confirm('¿Estás seguro de que quieres salir del juego?')) {
+      currentScore = 0;
+      currentStreak = 0;
+      updateScoreUI();
+      generateMathProblem();
+    }
+  });
   
   // Modal
   document.getElementById('modal-button')?.addEventListener('click', () => {
@@ -832,17 +979,14 @@ function setupEventListeners() {
 }
 
 function switchTab(tabId) {
-  // Actualizar botones de tab
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
   });
   
-  // Actualizar contenido de tab
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === tabId);
   });
   
-  // Iniciar juegos según la pestaña
   if (tabId === 'juego') {
     generateMathProblem();
   } else if (tabId === 'perfil') {
@@ -851,12 +995,10 @@ function switchTab(tabId) {
 }
 
 function switchGameMode(mode) {
-  // Actualizar botones de modo
   document.querySelectorAll('.game-mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
   
-  // Mostrar el modo seleccionado
   document.getElementById('math-game').style.display = mode === 'math' ? 'block' : 'none';
   document.getElementById('memory-game-container').style.display = mode === 'memory' ? 'block' : 'none';
   document.getElementById('logic-game-container').style.display = mode === 'logic' ? 'block' : 'none';
@@ -865,6 +1007,9 @@ function switchGameMode(mode) {
     generateMathProblem();
   } else if (mode === 'memory') {
     startMemoryGame();
+  } else if (mode === 'logic') {
+    startLogicGame();
+    document.getElementById('next-logic-btn').style.display = 'none';
   }
 }
 
@@ -914,6 +1059,8 @@ function initApp() {
     } else {
       document.getElementById('auth-forms').style.display = 'block';
       document.getElementById('profile-info').style.display = 'none';
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('signup-form').style.display = 'none';
     }
   });
   
@@ -922,6 +1069,7 @@ function initApp() {
     document.getElementById('splash').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
     generateMathProblem();
+    cardsApi.initNewDeck();
   }, 2000);
 }
 
