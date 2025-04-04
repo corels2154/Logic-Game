@@ -1,903 +1,740 @@
 
-/// Importar Firebase y sus módulos (Asegúrate que las rutas sean correctas si los descargas)
+// Importar Firebase y sus módulos
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
-// ======================
-// CONFIGURACIÓN DE FIREBASE (¡¡¡IMPORTANTE: RELLENA ESTO!!!)
-// ======================
-const firebaseConfig = {
-    apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
-    authDomain: "logic-game-2bec1.firebaseapp.com",
-    projectId: "logic-game-2bec1",
-    storageBucket: "logic-game-2bec1.firebasestorage.app",
-    messagingSenderId: "49694670172",
-    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-  };
-
-
-/// Inicializar Firebase
-let app, auth, db;
-try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    console.log("Firebase inicializado correctamente.");
-} catch (error) {
-    console.error("Error inicializando Firebase:", error);
-    alert("Error crítico: No se pudo conectar con Firebase. Revisa la configuración en app.js y tu consola.");
-    // Podrías deshabilitar funciones o mostrar un mensaje permanente
-}
-
-
-// ======================
-// VARIABLES GLOBALES Y SELECTORES DEL DOM
-// ======================
-let currentDeckId = null; // Empezar con null hasta que se inicialice
+const DECK_API_URL = 'https://deckofcardsapi.com/api/deck';
+let currentDeckId = null;
 let remainingCards = 0;
-let userFavorites = []; // Array para guardar objetos {id, code, value, suit, image}
-let currentUser = null; // Guardará el objeto de usuario de Firebase si está logueado
-let currentCard = null; // Guardará la última carta robada
 
-// --- Selectores del DOM ---
-// Contenedores principales
-const splashScreen = document.getElementById('splash');
-const appContent = document.getElementById('app-content');
-// Juego
-const drawButton = document.getElementById('draw-button');
-const shuffleButton = document.getElementById('shuffle-button');
-const cardDisplay = document.getElementById('card-display');
-const remainingCardsSpan = document.getElementById('remaining-cards');
-// Favoritos
-const favoritesListDiv = document.getElementById('favorites-list');
-const favoritesCountSpan = document.getElementById('favorites-count');
-const suitFilterSelect = document.getElementById('suit-filter');
-const searchInput = document.getElementById('search');
-// Autenticación y Perfil
-const authFormsDiv = document.getElementById('auth-forms');
-const loginForm = document.getElementById('login-form-element');
-const registerForm = document.getElementById('register-form-element');
-const loginFormContainer = document.getElementById('login-form');
-const registerFormContainer = document.getElementById('register-form');
-const showRegisterLink = document.getElementById('show-register');
-const showLoginLink = document.getElementById('show-login');
-const profileInfoDiv = document.getElementById('profile-info');
-const logoutButton = document.getElementById('logout-button');
-const userInfoHeaderDiv = document.getElementById('user-info');
-const profileNameH3 = document.getElementById('profile-name');
-const profileEmailP = document.getElementById('profile-email');
-const profileCountrySpan = document.getElementById('profile-country');
-const profileUsernameSpan = document.getElementById('profile-username');
-const loginErrorP = document.getElementById('login-error');
-const registerErrorP = document.getElementById('register-error');
-const registerNameInput = document.getElementById('register-name');
-const registerEmailInput = document.getElementById('register-email');
-const registerPasswordInput = document.getElementById('register-password');
-const registerBirthdateInput = document.getElementById('register-birthdate');
-const registerUsernameInput = document.getElementById('register-username');
-const registerCountrySelect = document.getElementById('register-country');
-const registerInterestsInput = document.getElementById('register-interests');
-
-// Navegación y Ajustes
-const bottomNav = document.querySelector('.bottom-nav');
-const tabButtons = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
-const themeSelector = document.getElementById('theme-selector');
-// Memoria (Placeholder)
-const startMemoryButton = document.getElementById('start-memory-button');
-const memoryGameDiv = document.getElementById('memory-game');
-
-// === AÑADE ESTAS VARIABLES GLOBALES AL INICIO DE TU app.js ===
-let memoryCards = [];       // Array de cartas para el juego actual
-let flippedCards = [];      // Array para guardar las 1 o 2 cartas volteadas temporalmente
-let matchedPairs = 0;       // Contador de pares encontrados
-let totalPairs = 0;         // Total de pares en el nivel actual
-let memoryMoves = 0;        // Contador de movimientos (intentos)
-let memoryGameActive = false; // Flag para evitar clics rápidos durante la comparación/animación
-let currentMemoryLevel = 1; // Nivel actual del juego (inicializado en 1)
-
-// === SELECTORES ADICIONALES (asegúrate que estén definidos) ===
-const memoryResultDiv = document.getElementById('memory-result');
-const memoryLevelSpan = document.getElementById('memory-level');
-const memoryLevelSelect = document.getElementById('memory-level-select'); // Nuevo selector
-// const memoryMovesSpan = document.getElementById('memory-moves'); // Podrías añadir un span para mostrar movimientos
-
-// ===========================================================
-// === REEMPLAZA TU FUNCIÓN startMemoryGame CON ESTA VERSIÓN ===
-// ===========================================================
-
-async function startMemoryGame() {
-    console.log(`Iniciando Juego de Memoria - Nivel ${currentMemoryLevel}`);
-    memoryGameActive = false; // Asegurar que esté inactivo al inicio
-    memoryResultDiv.innerHTML = ''; // Limpiar resultados previos
-    memoryGameDiv.innerHTML = '<div class="spinner" style="grid-column: 1 / -1; margin: 20px auto;"></div>'; // Indicador de carga
-    startMemoryButton.disabled = true;
-    startMemoryButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando Nivel...';
-    // memoryLevelSpan.textContent = currentMemoryLevel; // Ya no es necesario mostrarlo aquí, está en el selector
-    memoryMoves = 0;
-    matchedPairs = 0;
-    flippedCards = [];
-
-    // --- 1. Decidir número de pares según nivel ---
-    const level = parseInt(currentMemoryLevel); // Asegurarse de que sea un número
-    let numPairs;
-    switch (level) {
-        case 1:
-            numPairs = 4;
-            break;
-        case 2:
-            numPairs = 6;
-            break;
-        case 3:
-            numPairs = 8;
-            break;
-        case 4:
-            numPairs = 10;
-            break;
-        case 5:
-            numPairs = 12;
-            break;
-        default:
-            numPairs = 4; // Nivel por defecto si algo sale mal
-            currentMemoryLevel = 1; // Resetear a nivel por defecto
-            memoryLevelSelect.value = 1; // Actualizar el selector
-            console.warn("Nivel de memoria inválido, se estableció en 1.");
-    }
-    totalPairs = numPairs;
-    console.log(`Nivel ${currentMemoryLevel} requiere ${totalPairs} pares (${totalPairs * 2} cartas).`);
-
-    // --- 2. Robar N cartas ÚNICAS de la API ---
+// Función para inicializar una nueva baraja
+async function initNewDeck() {
     try {
-        const uniqueCards = await fetchUniqueCardsForMemory(totalPairs);
-        if (!uniqueCards) {
-            throw new Error("No se pudieron obtener cartas únicas.");
+        const response = await fetch(`${DECK_API_URL}/new/shuffle/?deck_count=1`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error('Error al crear baraja');
         }
-
-        // --- 3. Duplicar para tener pares y 4. Barajar ---
-        memoryCards = prepareMemoryCards(uniqueCards);
-
-        // --- 5. Crear elementos HTML ---
-        renderMemoryBoard();
-
-        // --- Marcar juego como activo ---
-        memoryGameActive = true;
-
+        
+        currentDeckId = data.deck_id;
+        remainingCards = data.remaining;
+        console.log(`Baraja creada: ${currentDeckId}`);
+        return true;
     } catch (error) {
-        console.error("Error iniciando juego de memoria:", error);
-        memoryResultDiv.innerHTML = `<p style="color: var(--error-color);">Error al cargar el nivel: ${error.message}</p>`;
-        memoryGameDiv.innerHTML = ''; // Limpiar spinner
-    } finally {
-        startMemoryButton.disabled = false; // Rehabilitar botón
-         startMemoryButton.innerHTML = '<i class="fas fa-play"></i> Comenzar Juego';
+        console.error("Error inicializando baraja:", error);
+        showErrorToUser("No se pudo crear la baraja de cartas");
+        return false;
     }
 }
 
-async function fetchUniqueCardsForMemory(numPairs) {
-    console.log(`Intentando robar ${numPairs} cartas únicas.`);
-    if (!currentDeckId || remainingCards < numPairs) {
-        console.log("No hay baraja válida o suficientes cartas. Inicializando nueva baraja...");
-        await initDeck(); // Espera a que la nueva baraja esté lista
-        if (!currentDeckId || remainingCards < numPairs) {
-            // Si aún después de inicializar no hay suficientes, es un problema mayor
-            alert("No se pudo obtener una baraja con suficientes cartas para el juego.");
-            return null;
-        }
+// Función para robar cartas
+async function drawCards(count = 1) {
+    if (!currentDeckId || remainingCards < count) {
+        await initNewDeck();
     }
-
+    
     try {
-        // Intenta robar las cartas necesarias
-        const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=${numPairs}`);
-        if (!response.ok) throw new Error(`Error ${response.status} de la API al robar para memoria`);
+        const response = await fetch(`${DECK_API_URL}/${currentDeckId}/draw/?count=${count}`);
         const data = await response.json();
-
-        if (data.success && data.cards.length === numPairs) {
-            remainingCards = data.remaining; // Actualizar cartas restantes globales
-            updateGameUI(); // Actualizar span de cartas restantes
-            console.log("Cartas únicas robadas para memoria:", data.cards);
-            return data.cards; // Devuelve las cartas robadas
-        } else {
-            // Si falla (ej. no quedan suficientes), intenta reiniciar la baraja y robar de nuevo
-            console.warn("No se pudieron robar suficientes cartas, reintentando con nueva baraja...");
-             await initDeck();
-             if (!currentDeckId || remainingCards < numPairs) {
-                 alert("Fallo crítico: No se pudo obtener una baraja con suficientes cartas.");
-                 return null;
-             }
-             // Segundo intento
-            const response2 = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=${numPairs}`);
-             if (!response2.ok) throw new Error(`Error ${response2.status} en segundo intento de robo`);
-             const data2 = await response2.json();
-
-             if (data2.success && data2.cards.length === numPairs) {
-                  remainingCards = data2.remaining;
-                  updateGameUI();
-                  console.log("Cartas únicas robadas en segundo intento:", data2.cards);
-                  return data2.cards;
-             } else {
-                 throw new Error("No se pudieron obtener las cartas necesarias después de reintentar.");
-             }
+        
+        if (!data.success) {
+            throw new Error('Error al robar cartas');
         }
+        
+        remainingCards = data.remaining;
+        updateRemainingCardsUI(); // Actualizar UI
+        return data.cards;
     } catch (error) {
-        console.error("Error fetching memory cards:", error);
-        alert(`Error al obtener cartas para el juego: ${error.message}`);
+        console.error("Error robando cartas:", error);
+        showErrorToUser("No se pudieron obtener cartas");
         return null;
     }
 }
 
-function prepareMemoryCards(uniqueCards) {
-    let cards = [];
-    uniqueCards.forEach(card => {
-        // Añadir dos copias de cada carta, con identificadores únicos si es necesario,
-        // pero con el mismo 'matchCode' para la comparación.
-        cards.push({ ...card, id: `${card.code}-a`, matchCode: card.code, isFlipped: false, isMatched: false });
-        cards.push({ ...card, id: `${card.code}-b`, matchCode: card.code, isFlipped: false, isMatched: false });
+// ======================
+// VARIABLES GLOBALES
+// ======================
+let app, auth, db; // Firebase variables
+const splashScreen = document.getElementById('splash');
+const appContent = document.getElementById('app-content');
+
+// Variables del juego
+let userFavorites = [];
+let currentUser = null;
+let currentCard = null;
+
+// Variables para juegos educativos
+let currentScore = 0;
+let currentStreak = 0;
+let gameTimer = null;
+let timeLeft = 60;
+let currentDifficulty = 'medio';
+let kidsMode = false;
+
+// Variables para el juego de memoria
+let memoryCards = [];
+let flippedCards = [];
+let matchedPairs = 0;
+let totalPairs = 0;
+let memoryMoves = 0;
+let memoryGameActive = false;
+let currentMemoryLevel = 1;
+let memoryGameTime = 0;
+let memoryTimer = null;
+
+// Variables para el juego matemático
+let currentMathProblem = null;
+let correctAnswer = null;
+let mathOperations = ['suma', 'resta', 'multiplicacion', 'division'];
+
+// ======================
+// FUNCIONES DE INICIALIZACIÓN
+// ======================
+
+// Función principal de inicialización
+async function initApp() {
+    try {
+        // Mostrar splash screen
+        if (splashScreen) splashScreen.style.display = 'flex';
+        if (appContent) appContent.style.display = 'none';
+        
+        // Inicializar Firebase
+        await initFirebase();
+        
+        // Inicializar baraja
+        await initDeck();
+        
+        // Configurar listeners
+        setupEventListeners();
+        
+        // Verificar autenticación
+        checkAuthState();
+        
+        // Cargar ajustes
+        loadSettings();
+        
+        // Ocultar splash después de 2 segundos
+        setTimeout(() => {
+            if (splashScreen) splashScreen.style.display = 'none';
+            if (appContent) appContent.style.display = 'block';
+            
+            // Iniciar el juego según la pestaña activa
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab && activeTab.id === 'juego') {
+                generateMathProblem();
+            }
+        }, 2000);
+        
+    } catch (error) {
+        console.error("Error inicializando la aplicación:", error);
+        showErrorScreen();
+    }
+}
+
+// Función para mostrar pantalla de error
+function showErrorScreen() {
+    if (appContent) {
+        appContent.innerHTML = `
+            <div class="error-container">
+                <h2>¡Ups! Algo salió mal</h2>
+                <p>No se pudo iniciar la aplicación. Por favor recarga la página.</p>
+                <button onclick="window.location.reload()" class="btn primary">Recargar</button>
+            </div>
+        `;
+        appContent.style.display = 'block';
+    }
+    if (splashScreen) splashScreen.style.display = 'none';
+}
+
+// Inicializar Firebase
+async function initFirebase() {
+    try {
+        const firebaseConfig = {
+            apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
+            authDomain: "logic-game-2bec1.firebaseapp.com",
+            projectId: "logic-game-2bec1",
+            storageBucket: "logic-game-2bec1.firebasestorage.app",
+            messagingSenderId: "49694670172",
+            appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
+          };
+        
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        console.log("Firebase inicializado correctamente");
+    } catch (error) {
+        console.error("Error inicializando Firebase:", error);
+        throw new Error("No se pudo conectar con Firebase");
+    }
+}
+
+// Inicializar baraja de cartas
+async function initDeck() {
+    try {
+        const response = await fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1');
+        if (!response.ok) throw new Error('Error al crear baraja');
+        
+        const data = await response.json();
+        currentDeckId = data.deck_id;
+        remainingCards = data.remaining;
+        console.log("Baraja inicializada:", currentDeckId);
+    } catch (error) {
+        console.error("Error inicializando baraja:", error);
+        throw new Error("No se pudo inicializar la baraja de cartas");
+    }
+}
+
+// Configurar event listeners
+function setupEventListeners() {
+    // Aquí irían todos los event listeners de tu aplicación
+    // Ejemplo:
+    document.getElementById('math-submit-btn')?.addEventListener('click', checkMathAnswer);
+    document.getElementById('start-memory-btn')?.addEventListener('click', startMemoryGame);
+    // ... otros listeners
+}
+
+// Verificar estado de autenticación
+function checkAuthState() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            loadProfileDetails();
+        } else {
+            currentUser = null;
+        }
+        updateAuthUI();
     });
-    // Barajar las cartas
-    return shuffleArray(cards);
+}
+
+// Cargar configuración del usuario
+function loadSettings() {
+    // Implementar según necesidades
+}
+
+// ======================
+// JUEGO MATEMÁTICO
+// ======================
+
+async function generateMathProblem() {
+    if (!currentDeckId || remainingCards < 2) {
+        await initDeck();
+    }
+    
+    try {
+        const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=2`);
+        if (!response.ok) throw new Error('Error al robar cartas');
+        const data = await response.json();
+        
+        if (data.success && data.cards.length === 2) {
+            remainingCards = data.remaining;
+            updateGameUI();
+            
+            const card1 = data.cards[0];
+            const card2 = data.cards[1];
+            const value1 = cardValueToNumber(card1.value);
+            const value2 = cardValueToNumber(card2.value);
+            const operation = mathOperations[Math.floor(Math.random() * mathOperations.length)];
+            
+            currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
+            displayMathProblem();
+        }
+    } catch (error) {
+        console.error("Error generando problema matemático:", error);
+        document.getElementById('problem-display').innerHTML = 
+            `<p class="error">Error al crear el problema. Intenta de nuevo.</p>`;
+    }
+}
+
+function createMathProblem(value1, value2, operation, card1, card2) {
+    let problemText = '';
+    let answer = 0;
+    
+    switch(operation) {
+        case 'suma':
+            problemText = `${value1} + ${value2}`;
+            answer = value1 + value2;
+            break;
+        case 'resta':
+            if (currentDifficulty === 'facil' && value1 < value2) {
+                problemText = `${value2} - ${value1}`;
+                answer = value2 - value1;
+            } else {
+                problemText = `${value1} - ${value2}`;
+                answer = value1 - value2;
+            }
+            break;
+        case 'multiplicacion':
+            problemText = `${value1} × ${value2}`;
+            answer = value1 * value2;
+            break;
+        case 'division':
+            if (value2 === 0) value2 = 1;
+            if (currentDifficulty === 'facil') {
+                answer = value1;
+                problemText = `${answer * value2} ÷ ${value2}`;
+            } else {
+                answer = Math.round((value1 / value2) * 10) / 10;
+                problemText = `${value1} ÷ ${value2}`;
+            }
+            break;
+    }
+    
+    return {
+        card1: card1,
+        card2: card2,
+        problem: problemText,
+        answer: answer,
+        operation: operation
+    };
+}
+
+function cardValueToNumber(value) {
+    switch(value) {
+        case 'ACE': return 1;
+        case 'JACK': return 11;
+        case 'QUEEN': return 12;
+        case 'KING': return 13;
+        default: return parseInt(value) || 0;
+    }
+}
+
+function displayMathProblem() {
+    if (!currentMathProblem) return;
+    
+    const cardDisplay = document.getElementById('card-display');
+    cardDisplay.innerHTML = `
+        <div class="math-card">
+            <img src="${currentMathProblem.card1.image}" alt="${currentMathProblem.card1.value}">
+            <span class="math-symbol">${getOperationSymbol(currentMathProblem.operation)}</span>
+            <img src="${currentMathProblem.card2.image}" alt="${currentMathProblem.card2.value}">
+            <span class="math-symbol">=</span>
+            <span class="question-mark">?</span>
+        </div>
+    `;
+    
+    document.getElementById('problem-display').innerHTML = `
+        <p>Resuelve:</p>
+        <h2>${currentMathProblem.problem} = ?</h2>
+    `;
+    
+    const answerOptions = document.getElementById('answer-options');
+    answerOptions.innerHTML = '';
+    
+    const answers = generateAnswerOptions(currentMathProblem.answer, kidsMode ? 3 : 4);
+    answers.forEach(answer => {
+        const button = document.createElement('button');
+        button.className = 'answer-btn';
+        button.textContent = answer;
+        button.dataset.answer = answer;
+        button.addEventListener('click', checkMathAnswer);
+        answerOptions.appendChild(button);
+    });
+    
+    if (!gameTimer) startGameTimer();
+}
+
+function generateAnswerOptions(correctAnswer, numOptions) {
+    let answers = [correctAnswer];
+    
+    while (answers.length < numOptions) {
+        let variation = Math.floor(Math.random() * 10) + 1;
+        if (currentMathProblem.operation === 'multiplicacion' || currentMathProblem.operation === 'division') {
+            variation = Math.floor(Math.random() * 5) + 1;
+        }
+        
+        const newAnswer = answers.length % 2 === 0 ? 
+            correctAnswer + variation : 
+            correctAnswer - variation;
+            
+        if (currentDifficulty === 'facil' && newAnswer < 0) continue;
+        if (!answers.includes(newAnswer)) answers.push(newAnswer);
+    }
+    
+    return shuffleArray(answers);
+}
+
+function checkMathAnswer(event) {
+    const selectedAnswer = parseFloat(event.target.dataset.answer);
+    const isCorrect = selectedAnswer === currentMathProblem.answer;
+    
+    if (isCorrect) {
+        currentStreak++;
+        currentScore += calculatePoints();
+        event.target.classList.add('correct');
+        showResultModal('¡Correcto!', `Ganaste ${calculatePoints()} puntos. Racha: ${currentStreak}`, 'success');
+        updateScoreUI();
+        
+        if (currentUser) saveMathProgress(currentMathProblem.operation, true);
+        
+        setTimeout(generateMathProblem, 1500);
+    } else {
+        currentStreak = 0;
+        event.target.classList.add('incorrect');
+        
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            if (parseFloat(btn.dataset.answer) === currentMathProblem.answer) {
+                btn.classList.add('correct');
+            }
+        });
+        
+        showResultModal('¡Ups!', `La respuesta correcta era ${currentMathProblem.answer}`, 'error');
+        if (currentUser) saveMathProgress(currentMathProblem.operation, false);
+        
+        setTimeout(() => displayMathProblem(), 2000);
+    }
+}
+
+function calculatePoints() {
+    let basePoints = 10;
+    switch(currentDifficulty) {
+        case 'facil': basePoints = 5; break;
+        case 'dificil': basePoints = 20; break;
+    }
+    const streakBonus = Math.min(currentStreak * 2, 20);
+    return basePoints + streakBonus;
+}
+
+// ======================
+// JUEGO DE MEMORIA
+// ======================
+
+async function startMemoryGame() {
+    memoryGameActive = false;
+    document.getElementById('memory-result').innerHTML = '';
+    document.getElementById('memory-game').innerHTML = '<div class="spinner"></div>';
+    document.getElementById('start-memory-btn').disabled = true;
+    
+    const level = parseInt(document.getElementById('memory-level').value);
+    totalPairs = getPairCountByLevel(level);
+    matchedPairs = 0;
+    memoryMoves = 0;
+    memoryGameTime = 0;
+    
+    updateMemoryUI();
+    
+    try {
+        const uniqueCards = await fetchUniqueCardsForMemory(totalPairs);
+        if (!uniqueCards) throw new Error("No se pudieron obtener cartas");
+        
+        memoryCards = prepareMemoryCards(uniqueCards);
+        renderMemoryBoard();
+        startMemoryTimer();
+        memoryGameActive = true;
+    } catch (error) {
+        console.error("Error iniciando juego de memoria:", error);
+        document.getElementById('memory-result').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+    } finally {
+        document.getElementById('start-memory-btn').disabled = false;
+    }
+}
+
+function getPairCountByLevel(level) {
+    switch(level) {
+        case 1: return 4;
+        case 2: return 6;
+        case 3: return 8;
+        case 4: return 10;
+        case 5: return 12;
+        default: return 4;
+    }
+}
+
+function prepareMemoryCards(cards) {
+    const pairedCards = [];
+    cards.forEach(card => {
+        pairedCards.push({...card, matchCode: `${card.value}-${card.suit}`, isFlipped: false, isMatched: false});
+        pairedCards.push({...card, matchCode: `${card.value}-${card.suit}`, isFlipped: false, isMatched: false});
+    });
+    return shuffleArray(pairedCards);
 }
 
 function renderMemoryBoard() {
-    memoryGameDiv.innerHTML = ''; // Limpiar contenido anterior (spinner)
-
-    // Ajustar el estilo de la cuadrícula según el número de cartas
+    const memoryGameDiv = document.getElementById('memory-game');
+    memoryGameDiv.innerHTML = '';
+    
     const numCards = memoryCards.length;
-    let columns = 4; // Por defecto
-    if (numCards === 8) columns = 4; // 4x2 (Nivel 1)
-    else if (numCards === 12) columns = 4; // 4x3 (Nivel 2)
-    else if (numCards === 16) columns = 4; // 4x4 (Nivel 3)
-    else if (numCards === 20) columns = 5; // 5x4 (Nivel 4)
-    else if (numCards === 24) columns = 6; // 6x4 (Nivel 5)
+    let columns = Math.ceil(Math.sqrt(numCards));
     memoryGameDiv.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-
-    // Crear y añadir las cartas al tablero
-    memoryCards.forEach((cardData, index) => {
+    
+    memoryCards.forEach((card, index) => {
         const cardElement = document.createElement('div');
-        cardElement.classList.add('memory-card');
-        cardElement.dataset.index = index; // Guardar índice para referenciar cardData
-        cardElement.dataset.matchCode = cardData.matchCode;
-
-        // Contenido interno (para mostrar imagen al voltear)
+        cardElement.className = 'memory-card';
+        cardElement.dataset.index = index;
+        
         cardElement.innerHTML = `
             <div class="memory-card-inner">
                 <div class="memory-card-front">
-                    <i class="fas fa-question"></i>
+                    <img src="assets/images/card-back.png" alt="Carta boca abajo">
                 </div>
                 <div class="memory-card-back">
-                    <img src="${cardData.image}" alt="${cardData.code}" loading="lazy">
+                    <img src="${card.image}" alt="${card.value} of ${card.suit}">
                 </div>
             </div>
         `;
-
-        cardElement.addEventListener('click', handleMemoryCardClick);
+        
+        cardElement.addEventListener('click', () => handleMemoryCardClick(index));
         memoryGameDiv.appendChild(cardElement);
     });
-     console.log("Tablero de memoria renderizado con", numCards, "cartas.");
 }
 
-function handleMemoryCardClick(event) {
-    if (!memoryGameActive) return; // Ignorar clics si el juego está "pausado"
-
-    const clickedCardElement = event.currentTarget;
-    const cardIndex = parseInt(clickedCardElement.dataset.index);
-    const cardData = memoryCards[cardIndex];
-
-    // Ignorar si ya está volteada o encontrada, o si ya hay 2 volteadas
-    if (cardData.isFlipped || cardData.isMatched || flippedCards.length >= 2) {
-        return;
-    }
-
-    // --- Voltear la carta ---
-    cardData.isFlipped = true;
-    clickedCardElement.classList.add('flipped');
-    flippedCards.push({ element: clickedCardElement, data: cardData });
-    console.log("Carta volteada:", cardData.code);
-
-    // --- Comprobar si hay dos cartas volteadas ---
+function handleMemoryCardClick(index) {
+    if (!memoryGameActive || memoryCards[index].isFlipped || memoryCards[index].isMatched) return;
+    
+    flipCard(index, true);
+    flippedCards.push(index);
+    
     if (flippedCards.length === 2) {
-        memoryGameActive = false; // Pausar el juego mientras se comprueba
         memoryMoves++;
-        // console.log("Movimiento:", memoryMoves); // Actualizar contador de movimientos en UI si existe
-        checkForMatch();
+        updateMemoryUI();
+        memoryGameActive = false;
+        
+        if (checkForMatch()) {
+            matchedPairs++;
+            flippedCards.forEach(i => {
+                memoryCards[i].isMatched = true;
+                document.querySelector(`.memory-card[data-index="${i}"]`).classList.add('matched');
+            });
+            
+            flippedCards = [];
+            
+            if (matchedPairs === totalPairs) {
+                endMemoryGame(true);
+            } else {
+                memoryGameActive = true;
+            }
+        } else {
+            setTimeout(() => {
+                flippedCards.forEach(i => flipCard(i, false));
+                flippedCards = [];
+                memoryGameActive = true;
+            }, 1000);
+        }
+    }
+}
+
+function flipCard(index, show) {
+    const cardElement = document.querySelector(`.memory-card[data-index="${index}"]`);
+    if (show) {
+        cardElement.classList.add('flipped');
+        memoryCards[index].isFlipped = true;
+    } else {
+        cardElement.classList.remove('flipped');
+        memoryCards[index].isFlipped = false;
     }
 }
 
 function checkForMatch() {
-    const card1 = flippedCards[0];
-    const card2 = flippedCards[1];
-
-    if (card1.data.matchCode === card2.data.matchCode) {
-        // --- ¡Es un par! ---
-        console.log("¡Par encontrado!", card1.data.matchCode);
-        handleMatch(card1, card2);
-        checkGameOver();
-        memoryGameActive = true; // Reactivar juego
-    } else {
-        // --- No es un par ---
-        console.log("No es par.");
-        // Esperar un poco antes de voltearlas de nuevo
-        setTimeout(() => {
-            handleNoMatch(card1, card2);
-             memoryGameActive = true; // Reactivar juego después de voltear
-        }, 1000); // Esperar 1 segundo
-    }
-     // Limpiar array de cartas volteadas después del procesamiento (sea match o no)
-     // Se hace aquí o dentro de handleMatch/handleNoMatch. Aquí parece más seguro.
-     flippedCards = [];
+    return flippedCards.length === 2 && 
+           memoryCards[flippedCards[0]].matchCode === memoryCards[flippedCards[1]].matchCode;
 }
 
-function handleMatch(card1, card2) {
-    card1.data.isMatched = true;
-    card2.data.isMatched = true;
-    card1.element.classList.add('matched');
-    card2.element.classList.add('matched');
-    // Opcional: remover el listener para que no se puedan clickear más
-    card1.element.removeEventListener('click', handleMemoryCardClick);
-    card2.element.removeEventListener('click', handleMemoryCardClick);
-    matchedPairs++;
-}
-
-function handleNoMatch(card1, card2) {
-    card1.data.isFlipped = false;
-    card2.data.isFlipped = false;
-    card1.element.classList.remove('flipped');
-    card2.element.classList.remove('flipped');
-}
-
-function checkGameOver() {
-    if (matchedPairs === totalPairs) {
-        console.log("¡Juego terminado!");
-        memoryGameActive = false; // Juego finalizado
-        memoryResultDiv.innerHTML = `
-            <h3 style="color: var(--primary-color);">¡Felicidades!</h3>
-            <p>Completaste el Nivel ${currentMemoryLevel} en ${memoryMoves} movimientos.</p>
-            <button id="next-level-btn" class="btn primary">Siguiente Nivel</button>
-            <button id="play-again-btn" class="btn">Jugar de Nuevo (Nivel ${currentMemoryLevel})</button>
-        `;
-        // Añadir listeners a los nuevos botones
-        document.getElementById('next-level-btn')?.addEventListener('click', () => {
-            currentMemoryLevel++; // Incrementar nivel
-            memoryLevelSelect.value = currentMemoryLevel; // Actualizar el selector
-            startMemoryGame();    // Empezar el siguiente nivel
-        });
-         document.getElementById('play-again-btn')?.addEventListener('click', startMemoryGame); // Reiniciar nivel actual
-    }
-}
-
-// --- Función auxiliar para barajar un array (Fisher-Yates) ---
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]]; // Intercambio de elementos
-  }
-  return array;
-}
-
-
-
-// ======================
-// FUNCIONES DE LA API DECK OF CARDS
-// ======================
-
-async function initDeck() {
-  console.log("Inicializando baraja...");
-  try {
-    // Siempre pedir una nueva baraja barajada al inicio o al quedarse sin cartas
-    const response = await fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1');
-    if (!response.ok) throw new Error(`Error ${response.status} de la API`);
-    const data = await response.json();
-
-    if (data.success) {
-        currentDeckId = data.deck_id;
-        remainingCards = data.remaining;
-        currentCard = null; // Resetear carta actual
-        console.log("Nueva baraja inicializada:", currentDeckId, "Cartas:", remainingCards);
-        updateGameUI(); // Actualizar UI del juego
-        cardDisplay.innerHTML = '<p>Baraja lista. ¡Roba una carta!</p>'; // Mensaje inicial
-    } else {
-        console.error("La API no devolvió éxito al crear baraja:", data);
-        alert("No se pudo obtener una nueva baraja de la API.");
-    }
-  } catch (error) {
-    console.error("Error al inicializar baraja:", error);
-    alert(`Error conectando con la API de cartas: ${error.message}. Intenta de nuevo más tarde.`);
-    // Podrías deshabilitar los botones de juego aquí
-    drawButton.disabled = true;
-    shuffleButton.disabled = true;
-  }
-}
-
-async function drawCardAction() {
-  if (!currentDeckId) {
-      alert("La baraja no está inicializada. Intentando inicializar...");
-      await initDeck();
-      return; // Salir y esperar a que initDeck termine
-  }
-
-  if (remainingCards <= 0) {
-      alert("¡No quedan cartas! Barajando nuevo mazo...");
-      await initDeck(); // Baraja automáticamente
-      return; // Salir, el usuario tendrá que volver a hacer clic
-  }
-
-  drawButton.disabled = true; // Deshabilitar mientras se roba
-  drawButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Robando...';
-
-  try {
-    const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=1`);
-     if (!response.ok) throw new Error(`Error ${response.status} de la API`);
-    const data = await response.json();
-
-    if (data.success && data.cards.length > 0) {
-        remainingCards = data.remaining;
-        currentCard = data.cards[0]; // Guardar la carta actual
-        console.log("Carta robada:", currentCard);
-        displayCard(currentCard);
-        updateGameUI();
-    } else if (!data.success && data.error.includes("Not enough cards remaining")) {
-        // Caso específico donde la API dice que no quedan cartas
-         alert("¡No quedan cartas según la API! Barajando nuevo mazo...");
-         await initDeck();
-    } else {
-        console.error("Respuesta inesperada al robar carta:", data);
-        alert("Hubo un problema al robar la carta.");
-        remainingCards = data.remaining; // Actualizar por si acaso la API lo devuelve
-        updateGameUI();
-    }
-  } catch (error) {
-    console.error("Error al robar carta:", error);
-    alert(`Error conectando con la API de cartas al robar: ${error.message}.`);
-  } finally {
-      drawButton.disabled = false; // Rehabilitar el botón
-      drawButton.innerHTML = '<i class="fas fa-hand-paper"></i> Robar Carta';
-  }
-}
-
-function displayCard(card) {
-  if (!card) {
-      cardDisplay.innerHTML = '<p>No hay carta para mostrar.</p>';
-      return;
-  }
-  // Comprobar si la carta actual ya es favorita
-  const isFavorite = currentUser ? userFavorites.some(fav => fav.code === card.code) : false;
-  const buttonHtml = currentUser
-    ? `<button class="save-favorite-btn ${isFavorite ? 'favorited' : ''}" data-code="${card.code}" data-value="${card.value}" data-suit="${card.suit}" data-image="${card.image}">
-         <i class="fas fa-heart"></i> ${isFavorite ? 'Guardada' : 'Guardar'}
-       </button>`
-    : '<p><small>Inicia sesión para guardar favoritos.</small></p>'; // Mensaje si no está logueado
-
-  cardDisplay.innerHTML = `
-    <div class="card">
-      <img src="${card.image}" alt="${card.value} of ${card.suit}">
-      <div class="card-info">
-        <h3>${translateValue(card.value)} de ${translateSuit(card.suit)}</h3>
-        ${buttonHtml}
-      </div>
-    </div>
-  `;
-
-  // Añadir event listener al botón de guardar si existe
-   const saveButton = cardDisplay.querySelector('.save-favorite-btn');
-   if (saveButton) {
-       saveButton.addEventListener('click', handleSaveFavoriteClick);
-   }
-}
-
-function handleSaveFavoriteClick(event) {
-    const button = event.currentTarget;
-    const { code, value, suit, image } = button.dataset;
-
-    // Verificar si ya es favorita para decidir si guardar o borrar
-    const isAlreadyFavorite = userFavorites.some(fav => fav.code === code);
-
-    if (isAlreadyFavorite) {
-        // Encontrar el ID del favorito para borrarlo
-        const favoriteToRemove = userFavorites.find(fav => fav.code === code);
-        if (favoriteToRemove) {
-            deleteFavorite(favoriteToRemove.id, button); // Pasar el botón para feedback visual
-        }
-    } else {
-        saveFavorite(code, value, suit, image, button); // Pasar el botón para feedback visual
-    }
-}
-
-// ======================
-// FUNCIONES DE FIREBASE (Firestore)
-// ======================
-
-async function saveUserData(userId, userData) {
-    try {
-        const userRef = doc(db, "users", userId);
-        await setDoc(userRef, { // Usar setDoc para crear o sobrescribir el perfil
-            name: userData.name,
-            username: userData.username,
-            country: userData.country,
-            birthdate: userData.birthdate || null, // Guardar como null si no se proporciona
-            interests: userData.interests || null,
-            email: userData.email // Guardar email para referencia, aunque esté en Auth
-        }, { merge: true }); // merge: true es útil si quieres añadir campos sin borrar otros
-        console.log("Datos de usuario guardados en Firestore para:", userId);
-    } catch (error) {
-        console.error("Error al guardar datos de usuario en Firestore:", error);
-        alert("Hubo un error al guardar tu información de perfil.");
-    }
-}
-
-async function loadUserProfile(userId) {
-    try {
-        const userRef = doc(db, "users", userId);
-        const docSnap = await getDoc(userRef);
-
-        if (docSnap.exists()) {
-            console.log("Perfil de usuario cargado:", docSnap.data());
-            return docSnap.data();
-        } else {
-            console.log("No existe documento de perfil para el usuario:", userId);
-            return null; // No hay perfil guardado
-        }
-    } catch (error) {
-        console.error("Error cargando perfil de usuario:", error);
-        return null;
-    }
-}
-
-async function saveFavorite(code, value, suit, image, buttonElement = null) {
-  if (!currentUser) {
-    alert("Debes iniciar sesión para guardar favoritos.");
-    return;
-  }
-   if (buttonElement) {
-      buttonElement.disabled = true;
-      buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-  }
-
-  try {
-    const favRef = collection(db, `users/${currentUser.uid}/favorites`);
-    await addDoc(favRef, {
-      code,
-      value,
-      suit,
-      image,
-      createdAt: serverTimestamp() // Fecha de guardado
-    });
-    console.log("Favorito guardado:", code);
-    // alert("¡Carta guardada en favoritos!"); // Quizás mejor feedback visual
-    await loadFavorites(); // Recargar favoritos para actualizar la lista y el estado del botón
-
-    // Actualizar el botón de la carta actual si es la que se guardó
-    if (currentCard && currentCard.code === code && cardDisplay.contains(buttonElement)) {
-        displayCard(currentCard); // Volver a renderizar la carta actual con el estado de favorito actualizado
-    }
-
-  } catch (error) {
-    console.error("Error al guardar favorito:", error);
-    alert("Error al guardar la carta: " + error.message);
-     if (buttonElement) { // Restaurar botón en caso de error
-        buttonElement.disabled = false;
-        buttonElement.innerHTML = '<i class="fas fa-heart"></i> Guardar';
-    }
-  }
-}
-
-async function deleteFavorite(favoriteId, buttonElement = null) {
-    if (!currentUser) {
-        alert("Debes iniciar sesión para gestionar favoritos.");
-        return;
-    }
-    if (buttonElement) {
-        buttonElement.disabled = true;
-        buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Borrando...';
-    }
-
-    try {
-        const favRef = doc(db, `users/${currentUser.uid}/favorites`, favoriteId);
-        await deleteDoc(favRef);
-        console.log("Favorito borrado:", favoriteId);
-        await loadFavorites(); // Recargar favoritos
-        // Actualizar el botón de la carta actual si es la que se borró
-        if (currentCard && currentCard.code === favoriteId && cardDisplay.contains(buttonElement)) {
-            displayCard(currentCard); // Volver a renderizar
-        }
-    } catch (error) {
-        console.error("Error al borrar favorito:", error);
-        alert("Error al borrar la carta de favoritos: " + error.message);
-        if (buttonElement) {
-            buttonElement.disabled = false;
-            buttonElement.innerHTML = '<i class="fas fa-heart"></i> Guardar'; // O 'Guardada' si era el estado anterior
-        }
-    }
-}
-
-async function loadFavorites(filterSuit = null, searchTerm = '') {
-    if (!currentUser) {
-        favoritesListDiv.innerHTML = '<p>Inicia sesión para ver tus cartas favoritas.</p>';
-        favoritesCountSpan.textContent = '0';
-        userFavorites = []; // Asegurar que esté vacío si no hay usuario
-        return;
-    }
-
-    favoritesListDiv.innerHTML = '<div class="spinner"></div>'; // Mostrar cargando
-    try {
-        const favRef = collection(db, `users/${currentUser.uid}/favorites`);
-        const q = query(favRef, orderBy("createdAt", "desc")); // Ordenar por fecha de guardado
-
-        const querySnapshot = await getDocs(q);
-        userFavorites = []; // Limpiar el array antes de recargar
-
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            if ((!filterSuit || data.suit === filterSuit) &&
-                (searchTerm === '' || `${data.value} ${data.suit}`.toLowerCase().includes(searchTerm.toLowerCase()))) {
-                userFavorites.push({ id: doc.id, ...data });
-            }
-        });
-
-        favoritesCountSpan.textContent = userFavorites.length;
-        renderFavoritesList(userFavorites);
-
-    } catch (error) {
-        console.error("Error al cargar favoritos:", error);
-        favoritesListDiv.innerHTML = `<p style="color: var(--error-color);">Error al cargar tus favoritos: ${error.message}</p>`;
-        favoritesCountSpan.textContent = '0';
-        userFavorites = [];
-    }
-}
-
-function renderFavoritesList(favorites) {
-    favoritesListDiv.innerHTML = ''; // Limpiar lista
-    if (favorites.length === 0) {
-        favoritesListDiv.innerHTML = '<p>No has guardado ninguna carta favorita aún.</p>';
-        return;
-    }
-
-    favorites.forEach(fav => {
-        const favCard = document.createElement('div');
-        favCard.classList.add('favorite-card');
-        favCard.innerHTML = `
-            <img src="${fav.image}" alt="${fav.value} of ${fav.suit}">
-            <div class="favorite-card-info">
-                <h4>${translateValue(fav.value)} de ${translateSuit(fav.suit)}</h4>
-                <button class="remove-favorite-btn" data-id="${fav.id}" data-code="${fav.code}">
-                    <i class="fas fa-trash"></i> Borrar
-                </button>
+function endMemoryGame(isCompleted) {
+    clearInterval(memoryTimer);
+    memoryGameActive = false;
+    
+    const timeBonus = Math.max(0, 300 - memoryGameTime);
+    const movesPenalty = memoryMoves * 2;
+    const levelMultiplier = currentMemoryLevel;
+    const pointsEarned = Math.max(50, (500 + timeBonus - movesPenalty) * levelMultiplier);
+    
+    if (isCompleted) {
+        currentScore += pointsEarned;
+        updateScoreUI();
+        
+        document.getElementById('memory-result').innerHTML = `
+            <div class="memory-result success">
+                <h3>¡Nivel completado!</h3>
+                <p>Movimientos: ${memoryMoves}</p>
+                <p>Tiempo: ${formatTime(memoryGameTime)}</p>
+                <p>Puntos ganados: ${pointsEarned}</p>
+                <button id="next-level-btn" class="btn primary">Siguiente Nivel</button>
             </div>
         `;
-        favoritesListDiv.appendChild(favCard);
-    });
-
-    // Añadir event listeners a los botones de borrar
-    const removeButtons = favoritesListDiv.querySelectorAll('.remove-favorite-btn');
-    removeButtons.forEach(button => {
-        button.addEventListener('click', (event) => {
-            const favoriteId = event.currentTarget.dataset.id;
-            const cardCode = event.currentTarget.dataset.code;
-            deleteFavorite(favoriteId);
-            // Opcional: podría ser útil dar feedback visual inmediato aquí
-            const cardElementToRemove = event.currentTarget.closest('.favorite-card');
-            if (cardElementToRemove) {
-                cardElementToRemove.remove();
-                const index = userFavorites.findIndex(fav => fav.id === favoriteId);
-                if (index > -1) {
-                    userFavorites.splice(index, 1);
-                    favoritesCountSpan.textContent = userFavorites.length;
-                    if (userFavorites.length === 0) {
-                        favoritesListDiv.innerHTML = '<p>No has guardado ninguna carta favorita aún.</p>';
-                    }
-                }
-            }
+        
+        document.getElementById('next-level-btn').addEventListener('click', () => {
+            currentMemoryLevel = Math.min(5, currentMemoryLevel + 1);
+            document.getElementById('memory-level').value = currentMemoryLevel;
+            startMemoryGame();
         });
-    });
-}
-
-// ======================
-// FUNCIONES DE AUTENTICACIÓN DE FIREBASE
-// ======================
-
-auth.onAuthStateChanged(async (user) => {
-    if (user) {
-        // Usuario está logueado
-        currentUser = user;
-        console.log("Usuario autenticado:", currentUser.uid);
-        updateAuthUI(true);
-        await loadUserProfile(currentUser.uid); // Cargar datos del perfil desde Firestore
-        await loadFavorites(); // Cargar favoritos al iniciar sesión
-    } else {
-        // Usuario no está logueado
-        currentUser = null;
-        console.log("Usuario no autenticado.");
-        updateAuthUI(false);
-        userFavorites = []; // Limpiar favoritos
-        favoritesCountSpan.textContent = '0';
-        favoritesListDiv.innerHTML = '<p>Inicia sesión para ver tus cartas favoritas.</p>';
-    }
-});
-
-function updateAuthUI(isLoggedIn) {
-    if (isLoggedIn) {
-        // Ocultar formularios de login/registro, mostrar info de perfil
-        authFormsDiv.style.display = 'none';
-        profileInfoDiv.style.display = 'block';
-        userInfoHeaderDiv.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email}`;
-        // Cargar el perfil específico del usuario
-        loadProfileDetails();
-    } else {
-        // Mostrar formularios, ocultar info de perfil
-        authFormsDiv.style.display = 'block';
-        profileInfoDiv.style.display = 'none';
-        userInfoHeaderDiv.innerHTML = '<i class="fas fa-user-circle"></i> Invitado';
-        profileNameH3.textContent = 'Invitado';
-        profileEmailP.textContent = 'No logueado';
-        profileCountrySpan.textContent = '--';
-        profileUsernameSpan.textContent = '--';
-    }
-}
-
-async function loadProfileDetails() {
-    if (currentUser && currentUser.uid) {
-        const profileData = await loadUserProfile(currentUser.uid);
-        if (profileData) {
-            profileNameH3.textContent = profileData.name || 'Nombre no disponible';
-            profileEmailP.textContent = profileData.email || currentUser.email;
-            profileCountrySpan.textContent = profileData.country || '--';
-            profileUsernameSpan.textContent = profileData.username || 'Usuario no disponible';
-            // Aquí podrías cargar también la foto de perfil si la guardas en Firestore
+        
+        if (currentUser) {
+            saveMemoryProgress(pointsEarned, currentMemoryLevel, memoryMoves, memoryGameTime);
         }
     }
 }
 
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = loginForm.loginEmail.value;
-    const password = loginForm.loginPassword.value;
-    loginErrorP.style.display = 'none'; // Ocultar errores previos
+// ======================
+// FUNCIONES AUXILIARES
+// ======================
 
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("Usuario logueado:", userCredential.user);
-        // auth.onAuthStateChanged se encargará de actualizar la UI
-    } catch (error) {
-        console.error("Error al iniciar sesión:", error.message);
-        loginErrorP.textContent = traducirErrorAuth(error.code);
-        loginErrorP.style.display = 'block';
+function updateScoreUI() {
+    document.getElementById('current-score').textContent = currentScore;
+    document.getElementById('current-streak').textContent = currentStreak;
+    if (currentUser) document.getElementById('profile-points').textContent = currentScore;
+}
+
+function updateMemoryUI() {
+    document.getElementById('memory-moves').textContent = memoryMoves;
+    document.getElementById('memory-time').textContent = formatTime(memoryGameTime);
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function startGameTimer() {
+    clearInterval(gameTimer);
+    timeLeft = 60;
+    updateTimerUI();
+    
+    gameTimer = setInterval(() => {
+        timeLeft--;
+        updateTimerUI();
+        
+        if (timeLeft <= 0) {
+            clearInterval(gameTimer);
+            showResultModal('¡Tiempo terminado!', `Tu puntuación final: ${currentScore}`, 'info');
+            setTimeout(() => {
+                currentScore = 0;
+                currentStreak = 0;
+                updateScoreUI();
+                generateMathProblem();
+            }, 3000);
+        }
+    }, 1000);
+}
+
+function startMemoryTimer() {
+    clearInterval(memoryTimer);
+    memoryGameTime = 0;
+    updateMemoryUI();
+    
+    memoryTimer = setInterval(() => {
+        memoryGameTime++;
+        updateMemoryUI();
+    }, 1000);
+}
+
+function showResultModal(title, message, type) {
+    const modal = document.getElementById('result-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalContent = document.getElementById('modal-content');
+    
+    modalTitle.textContent = title;
+    modalContent.innerHTML = `<p>${message}</p>`;
+    modalContent.className = type;
+    modal.style.display = 'block';
+    
+    document.getElementById('modal-button').onclick = function() {
+        modal.style.display = 'none';
+    };
+    
+    modal.onclick = function(event) {
+        if (event.target === modal) modal.style.display = 'none';
+    };
+}
+
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
-});
+    return newArray;
+}
 
-registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = registerNameInput.value;
-    const email = registerEmailInput.value;
-    const password = registerPasswordInput.value;
-    const birthdate = registerBirthdateInput.value;
-    const username = registerUsernameInput.value;
-    const country = registerCountrySelect.value;
-    const interests = registerInterestsInput.value;
-    registerErrorP.style.display = 'none'; // Ocultar errores previos
-
-    if (password.length < 6) {
-        registerErrorP.textContent = "La contraseña debe tener al menos 6 caracteres.";
-        registerErrorP.style.display = 'block';
-        return;
-    }
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("Usuario registrado:", userCredential.user);
-        // Guardar datos adicionales en Firestore
-        await saveUserData(userCredential.user.uid, { name, username, country, birthdate, interests, email });
-        // auth.onAuthStateChanged se encargará de actualizar la UI
-    } catch (error) {
-        console.error("Error al registrar usuario:", error.message);
-        registerErrorP.textContent = traducirErrorAuth(error.code);
-        registerErrorP.style.display = 'block';
-    }
-});
-logoutButton.addEventListener('click', async () => {
-    try {
-        await signOut(auth);
-        console.log("Usuario cerró sesión.");
-        // auth.onAuthStateChanged se encargará de actualizar la UI
-    } catch (error) {
-        console.error("Error al cerrar sesión:", error);
-        alert("Error al cerrar sesión.");
-    }
-});
-
-showRegisterLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    loginFormContainer.style.display = 'none';
-    registerFormContainer.style.display = 'block';
-});
-
-showLoginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    registerFormContainer.style.display = 'none';
-    loginFormContainer.style.display = 'block';
-});
-
-function traducirErrorAuth(errorCode) {
-    switch (errorCode) {
-        case 'auth/email-already-in-use':
-            return 'Este correo electrónico ya está en uso.';
-        case 'auth/invalid-email':
-            return 'El correo electrónico no es válido.';
-        case 'auth/wrong-password':
-            return 'Contraseña incorrecta.';
-        case 'auth/user-not-found':
-            return 'No se encontró usuario con este correo electrónico.';
-        case 'auth/weak-password':
-            return 'La contraseña es demasiado débil.';
-        default:
-            return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+function getOperationSymbol(operation) {
+    switch(operation) {
+        case 'suma': return '+';
+        case 'resta': return '-';
+        case 'multiplicacion': return '×';
+        case 'division': return '÷';
+        default: return '?';
     }
 }
 
 // ======================
-// FUNCIONES DE UTILIDAD Y EVENT LISTENERS INICIALES
+// INTEGRACIÓN CON FIREBASE
 // ======================
 
-function translateSuit(suit) {
-    switch (suit) {
-        case 'HEARTS': return 'Corazones';
-        case 'DIAMONDS': return 'Diamantes';
-        case 'CLUBS': return 'Tréboles';
-        case 'SPADES': return 'Picas';
-        default: return suit;
+async function saveMathProgress(operation, isCorrect) {
+    if (!currentUser) return;
+    
+    try {
+        const progressRef = collection(db, `users/${currentUser.uid}/mathProgress`);
+        await addDoc(progressRef, {
+            operation,
+            isCorrect,
+            difficulty: currentDifficulty,
+            timestamp: serverTimestamp(),
+            problem: currentMathProblem?.problem,
+            streak: currentStreak
+        });
+        
+        await updateUserStats(isCorrect ? 1 : 0, 0, currentStreak);
+    } catch (error) {
+        console.error("Error guardando progreso matemático:", error);
     }
 }
 
-function translateValue(value) {
-    switch (value) {
-        case 'ACE': return 'As';
-        case 'KING': return 'Rey';
-        case 'QUEEN': return 'Reina';
-        case 'JACK': return 'Jota';
-        default: return value;
+async function saveMemoryProgress(pointsEarned, level, moves, time) {
+    if (!currentUser) return;
+    
+    try {
+        const progressRef = collection(db, `users/${currentUser.uid}/memoryProgress`);
+        await addDoc(progressRef, {
+            level,
+            points: pointsEarned,
+            moves,
+            time,
+            timestamp: serverTimestamp()
+        });
+        
+        await updateUserStats(0, pointsEarned, 0);
+    } catch (error) {
+        console.error("Error guardando progreso de memoria:", error);
     }
 }
 
-function updateGameUI() {
-  remainingCardsSpan.textContent = remainingCards;
+async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
+    if (!currentUser) return;
+    
+    try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        const currentData = userSnap.exists() ? userSnap.data() : {};
+        const currentTotal = currentData.totalPoints || 0;
+        const currentMath = currentData.mathPoints || 0;
+        const currentMemory = currentData.memoryPoints || 0;
+        const bestStreak = Math.max(streak, currentData.bestStreak || 0);
+        
+        await setDoc(userRef, {
+            totalPoints: currentTotal + mathPoints + memoryPoints,
+            mathPoints: currentMath + mathPoints,
+            memoryPoints: currentMemory + memoryPoints,
+            bestStreak: bestStreak,
+            lastPlayed: serverTimestamp()
+        }, { merge: true });
+        
+        if (userSnap.exists()) loadProfileDetails();
+    } catch (error) {
+        console.error("Error actualizando estadísticas de usuario:", error);
+    }
 }
 
-// --- Event listeners ---
-drawButton.addEventListener('click', drawCardAction);
-shuffleButton.addEventListener('click', initDeck);
-suitFilterSelect.addEventListener('change', (e) => loadFavorites(e.target.value, searchInput.value));
-searchInput.addEventListener('input', (e) => loadFavorites(suitFilterSelect.value, e.target.value));
-startMemoryButton.addEventListener('click', startMemoryGame);
+// ======================
+// INICIO DE LA APLICACIÓN
+// ======================
 
-// --- Selector de nivel de memoria ---
-memoryLevelSelect.addEventListener('change', function() {
-    currentMemoryLevel = parseInt(this.value);
-    console.log("Nivel de memoria seleccionado:", currentMemoryLevel);
-});
-
-// --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        splashScreen.style.display = 'none';
-        appContent.style.display = 'block';
-        initDeck(); // Inicializar la baraja al cargar la aplicación
-        // Inicializar el nivel del juego de memoria al cargar la página
-        const initialMemoryLevel = parseInt(memoryLevelSelect.value);
-        if (!isNaN(initialMemoryLevel)) {
-            currentMemoryLevel = initialMemoryLevel;
-            console.log("Nivel de memoria inicializado a:", currentMemoryLevel);
-        }
-    }, 2000); // Simula un tiempo de carga
-});
-
-// --- Navegación por pestañas ---
-bottomNav.addEventListener('click', (event) => {
-    if (event.target.classList.contains('tab-btn')) {
-        const tab = event.target.dataset.tab;
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        event.target.classList.add('active');
-        document.getElementById(tab).classList.add('active');
-        // Cargar datos específicos al cambiar de pestaña si es necesario
-        if (tab === 'favoritos') {
-            loadFavorites(suitFilterSelect.value, searchInput.value);
-        }
-    }
+        if (splashScreen) splashScreen.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        initApp();
+    }, 2000);
 });
