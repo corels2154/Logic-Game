@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logic_Game</title>
+    <title>Math Adventure</title>
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧮</text></svg>">
 </head>
 <body>
     <div class="splash-screen" id="splash">
         <div class="splash-content">
-            <img src="assets/images/iconlg.jpeg" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
-            <h1>Diviertete aprendiendo</h1>
+            <img src="assets/images/logo.png" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
+            <h1>Math Adventure</h1>
             <p>Cargando diversión matemática...</p>
             <div class="spinner"></div>
         </div>
@@ -22,7 +22,7 @@
     <div id="app-content" style="display: none;">
         <header>
             <div class="header-content">
-                <h1><i class="fas fa-calculator"></i> Diviertete aprendiendo</h1>
+                <h1><i class="fas fa-calculator"></i> Math Adventure</h1>
                 <div class="user-info" id="user-info"></div>
                 <button id="exit-game-btn" class="btn exit-btn"><i class="fas fa-sign-out-alt"></i> Salir</button>
             </div>
@@ -116,53 +116,55 @@
                 </div>
             </section>
 
-            <section id="favoritos" class="tab-content">
-                <h2><i class="fas fa-heart"></i> Tus progresos (<span id="favorites-count">0</span>)</h2>
-                <div class="filter-controls">
-                    <select id="suit-filter">
-                        <option value="">Todos los temas</option>
-                        <option value="suma">Sumas</option>
-                        <option value="resta">Restas</option>
-                        <option value="multiplicacion">Multiplicación</option>
-                        <option value="division">División</option>
-                    </select>
-                    <select id="difficulty-filter">
-                        <option value="">Todas las dificultades</option>
-                        <option value="facil">Fácil</option>
-                        <option value="medio">Medio</option>
-                        <option value="dificil">Difícil</option>
-                    </select>
-                </div>
-                <div id="favorites-list" class="favorites-grid"></div>
-            </section>
-
             <section id="aprendizaje" class="tab-content">
                 <h2><i class="fas fa-book-open"></i> Aprende</h2>
                 <div class="learn-tabs">
-                    <button class="learn-tab active" data-tab="multiplicacion">Tablas</button>
-                    <button class="learn-tab" data-tab="fracciones">Fracciones</button>
-                    <button class="learn-tab" data-tab="porcentajes">Porcentajes</button>
-                    <button class="learn-tab" data-tab="algebra">Álgebra</button>
+                    <button class="learn-tab active" data-tab="multiplicacion"><i class="fas fa-times"></i> Tablas</button>
+                    <button class="learn-tab" data-tab="fracciones"><i class="fas fa-divide"></i> Fracciones</button>
+                    <button class="learn-tab" data-tab="porcentajes"><i class="fas fa-percent"></i> Porcentajes</button>
+                    <button class="learn-tab" data-tab="algebra"><i class="fas fa-square-root-alt"></i> Álgebra</button>
                 </div>
                 
                 <div id="multiplicacion-content" class="learn-content active">
-                    <h3>Tablas de multiplicar</h3>
-                    <div class="tables-grid" id="tables-grid"></div>
+                    <h3><i class="fas fa-times"></i> Tablas de multiplicar</h3>
+                    <div class="tables-container">
+                        <div class="tables-grid" id="tables-grid"></div>
+                        <div class="table-game" id="table-game"></div>
+                    </div>
                 </div>
                 
                 <div id="fracciones-content" class="learn-content">
-                    <h3>Fracciones con cartas</h3>
-                    <div class="fraction-game" id="fraction-game"></div>
+                    <h3><i class="fas fa-divide"></i> Fracciones con cartas</h3>
+                    <div class="fraction-game-container">
+                        <div class="fraction-controls">
+                            <button id="new-fraction-btn" class="btn primary"><i class="fas fa-plus"></i> Nueva Fracción</button>
+                            <button id="check-fraction-btn" class="btn success"><i class="fas fa-check"></i> Comprobar</button>
+                        </div>
+                        <div class="fraction-game" id="fraction-game"></div>
+                        <div class="fraction-result" id="fraction-result"></div>
+                    </div>
                 </div>
                 
                 <div id="porcentajes-content" class="learn-content">
-                    <h3>Porcentajes</h3>
-                    <div class="percentage-game" id="percentage-game"></div>
+                    <h3><i class="fas fa-percent"></i> Porcentajes</h3>
+                    <div class="percentage-game-container">
+                        <div class="percentage-controls">
+                            <button id="new-percentage-btn" class="btn primary"><i class="fas fa-random"></i> Nuevo Problema</button>
+                        </div>
+                        <div class="percentage-game" id="percentage-game"></div>
+                        <div class="percentage-options" id="percentage-options"></div>
+                    </div>
                 </div>
                 
                 <div id="algebra-content" class="learn-content">
-                    <h3>Álgebra básica</h3>
-                    <div class="algebra-game" id="algebra-game"></div>
+                    <h3><i class="fas fa-square-root-alt"></i> Álgebra básica</h3>
+                    <div class="algebra-game-container">
+                        <div class="algebra-controls">
+                            <button id="new-algebra-btn" class="btn primary"><i class="fas fa-random"></i> Nuevo Problema</button>
+                        </div>
+                        <div class="algebra-game" id="algebra-game"></div>
+                        <div class="algebra-options" id="algebra-options"></div>
+                    </div>
                 </div>
             </section>
 
@@ -291,6 +293,10 @@
                             <option value="dificil">Difícil</option>
                         </select>
                     </div>
+                    <div class="setting">
+                        <h3>Volumen</h3>
+                        <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.7">
+                    </div>
                 </div>
             </section>
         </main>
@@ -325,6 +331,13 @@
             <button id="modal-button" class="btn primary">Continuar</button>
         </div>
     </div>
+
+    <!-- Audio para efectos de sonido -->
+    <audio id="correct-sound" src="assets/sounds/correct.mp3" preload="auto"></audio>
+    <audio id="wrong-sound" src="assets/sounds/wrong.mp3" preload="auto"></audio>
+    <audio id="flip-sound" src="assets/sounds/flip.mp3" preload="auto"></audio>
+    <audio id="win-sound" src="assets/sounds/win.mp3" preload="auto"></audio>
+    <audio id="background-music" src="assets/sounds/background.mp3" loop preload="auto"></audio>
 
     <script type="module" src="js/app.js"></script>
 </body>
