@@ -12,7 +12,7 @@
 <body>
     <div class="splash-screen" id="splash">
         <div class="splash-content">
-            <img src="assets/images/logo.png" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
+            <img src="assets/images/iconlg.jpeg" alt="App Icon" class="splash-icon" onerror="this.onerror=null;this.src='assets/images/default-icon.png'">
             <h1>Diviertete aprendiendo</h1>
             <p>Cargando diversión matemática...</p>
             <div class="spinner"></div>
@@ -196,6 +196,22 @@
                             <label for="signup-username">Nombre de usuario:</label>
                             <input type="text" id="signup-username" placeholder="Cómo te llamaremos">
                         </div>
+                        <div class="form-group">
+                            <label for="signup-age">Edad:</label>
+                            <input type="number" id="signup-age" placeholder="Tu edad" min="5" max="99">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-school">Escuela:</label>
+                            <input type="text" id="signup-school" placeholder="Nombre de tu escuela">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-grade">Grado:</label>
+                            <input type="text" id="signup-grade" placeholder="Tu grado escolar">
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-interests">Intereses:</label>
+                            <input type="text" id="signup-interests" placeholder="Tus intereses (separados por comas)">
+                        </div>
                         <button id="signup-btn" class="btn primary">Registrarse</button>
                         <p class="auth-switch">¿Ya tienes cuenta? <a href="#" id="show-login">Inicia sesión</a></p>
                     </div>
@@ -207,6 +223,10 @@
                         <img id="profile-pic" src="assets/images/avatar.png" alt="Foto de perfil" onerror="this.src='assets/images/default-avatar.png'">
                         <h3 id="profile-name">Nombre usuario</h3>
                         <p id="profile-email">correo@ejemplo.com</p>
+                        <p id="profile-age"><strong>Edad:</strong> <span>--</span></p>
+                        <p id="profile-school"><strong>Escuela:</strong> <span>--</span></p>
+                        <p id="profile-grade"><strong>Grado:</strong> <span>--</span></p>
+                        <p id="profile-interests"><strong>Intereses:</strong> <span>--</span></p>
                         
                         <div class="profile-stats">
                             <div class="stat-card">

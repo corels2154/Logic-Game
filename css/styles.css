@@ -94,6 +94,13 @@
     padding: 0.5rem 1rem;
     border-radius: 20px;
     font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .exit-btn:hover {
+    background-color: #d32f2f;
+    transform: translateY(-2px);
   }
   
   .search-container {
@@ -242,6 +249,95 @@
     color: var(--dark-color);
   }
   
+  /* Juego de memoria */
+  .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  
+  .memory-card {
+    aspect-ratio: 2/3;
+    perspective: 1000px;
+    cursor: pointer;
+  }
+  
+  .memory-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+  
+  .memory-card.flipped .memory-card-inner {
+    transform: rotateY(180deg);
+  }
+  
+  .memory-card-front,
+  .memory-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .memory-card-front {
+    background-color: var(--primary-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .memory-card-back {
+    background-color: white;
+    transform: rotateY(180deg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .memory-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 0.5rem;
+    background-color: white;
+  }
+  
+  .memory-card.matched {
+    opacity: 0.6;
+    cursor: default;
+  }
+  
+  .memory-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .memory-controls select {
+    padding: 0.5rem;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    background-color: white;
+  }
+  
+  .memory-stats {
+    display: flex;
+    justify-content: space-around;
+    background-color: rgba(255, 255, 255, var(--background-opacity));
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+  }
+  
   /* Juego de lógica */
   .logic-problem {
     margin-bottom: 1.5rem;
@@ -345,95 +441,6 @@
     color: var(--primary-color);
   }
   
-  /* Juego de memoria */
-  .memory-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin: 1.5rem 0;
-  }
-  
-  .memory-card {
-    aspect-ratio: 2/3;
-    perspective: 1000px;
-    cursor: pointer;
-  }
-  
-  .memory-card-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transition: transform 0.6s;
-    transform-style: preserve-3d;
-  }
-  
-  .memory-card.flipped .memory-card-inner {
-    transform: rotateY(180deg);
-  }
-  
-  .memory-card-front,
-  .memory-card-back {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    backface-visibility: hidden;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  .memory-card-front {
-    background-color: var(--primary-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .memory-card-back {
-    background-color: white;
-    transform: rotateY(180deg);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .memory-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    padding: 0.5rem;
-    background-color: white;
-  }
-  
-  .memory-card.matched {
-    opacity: 0.6;
-    cursor: default;
-  }
-  
-  .memory-controls {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  
-  .memory-controls select {
-    padding: 0.5rem;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-    background-color: white;
-  }
-  
-  .memory-stats {
-    display: flex;
-    justify-content: space-around;
-    background-color: rgba(255, 255, 255, var(--background-opacity));
-    padding: 1rem;
-    border-radius: 10px;
-    margin: 1rem 0;
-  }
-  
   /* Formularios de autenticación */
   .auth-form {
     background-color: rgba(255, 255, 255, var(--background-opacity));
@@ -492,7 +499,7 @@
     text-align: center;
     margin-bottom: 1.5rem;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    max-width: 500px;
+    max-width: 600px;
     margin: 0 auto;
   }
   
@@ -503,6 +510,16 @@
     object-fit: cover;
     margin: 0 auto 1rem;
     border: 3px solid var(--primary-color);
+  }
+  
+  .profile-card p {
+    margin: 0.5rem 0;
+    text-align: left;
+  }
+  
+  .profile-card p strong {
+    font-weight: bold;
+    color: var(--primary-color);
   }
   
   .profile-stats {

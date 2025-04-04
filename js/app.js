@@ -16,22 +16,23 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  serverTimestamp
+  serverTimestamp,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // URLs de recursos por defecto
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
 
-// Configuración de Firebase (completa con tus credenciales)
+// Configuración de Firebase
 const firebaseConfig = {
-    apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
-    authDomain: "logic-game-2bec1.firebaseapp.com",
-    projectId: "logic-game-2bec1",
-    storageBucket: "logic-game-2bec1.firebasestorage.app",
-    messagingSenderId: "49694670172",
-    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-  };
+  apiKey: "TU_API_KEY",
+  authDomain: "logic-game-2bec1.firebaseapp.com",
+  projectId: "logic-game-2bec1",
+  storageBucket: "logic-game-2bec1.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
@@ -387,9 +388,13 @@ function handleMemoryCardClick(index) {
     memoryGameActive = false;
     
     if (checkForMatch()) {
-      handleMatch();
+      setTimeout(() => {
+        handleMatch();
+      }, 500);
     } else {
-      handleMismatch();
+      setTimeout(() => {
+        handleMismatch();
+      }, 1000);
     }
   }
 }
@@ -425,11 +430,9 @@ function handleMatch() {
 }
 
 function handleMismatch() {
-  setTimeout(() => {
-    flippedCards.forEach(i => flipCard(i, false));
-    flippedCards = [];
-    memoryGameActive = true;
-  }, 1000);
+  flippedCards.forEach(i => flipCard(i, false));
+  flippedCards = [];
+  memoryGameActive = true;
 }
 
 function endMemoryGame(isCompleted) {
@@ -538,25 +541,75 @@ function checkLogicAnswer(selectedIndex) {
   document.getElementById('next-logic-btn').style.display = 'block';
 }
 
-async function saveLogicProgress(isCorrect) {
-  if (!currentUser) return;
+// ======================
+// PERFIL Y AUTENTICACIÓN
+// ======================
+
+async function handleLogin() {
+  const email = document.getElementById('login-email')?.value;
+  const password = document.getElementById('login-password')?.value;
   
+  if (!email || !password) {
+    showResultModal('Error', 'Por favor ingresa email y contraseña', 'error');
+    return;
+  }
+
   try {
-    await addDoc(collection(db, `users/${currentUser.uid}/logicProgress`), {
-      isCorrect,
-      problem: currentLogicProblem.question,
-      timestamp: serverTimestamp()
-    });
-    
-    await updateUserStats(isCorrect ? 15 : 0, 0, currentStreak);
+    await signInWithEmailAndPassword(auth, email, password);
+    showResultModal('Éxito', 'Inicio de sesión correcto', 'success');
   } catch (error) {
-    console.error("Error guardando progreso de lógica:", error);
+    console.error("Error al iniciar sesión:", error);
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
   }
 }
 
-// ======================
-// FUNCIONES DEL PERFIL
-// ======================
+async function handleSignup() {
+  const email = document.getElementById('signup-email')?.value;
+  const password = document.getElementById('signup-password')?.value;
+  const username = document.getElementById('signup-username')?.value;
+  const age = document.getElementById('signup-age')?.value;
+  const school = document.getElementById('signup-school')?.value;
+  const grade = document.getElementById('signup-grade')?.value;
+  const interests = document.getElementById('signup-interests')?.value;
+  
+  if (!email || !password || !username || !age || !school || !grade || !interests) {
+    showResultModal('Error', 'Por favor completa todos los campos', 'error');
+    return;
+  }
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Actualizar perfil con nombre de usuario
+    await updateProfile(auth.currentUser, {
+      displayName: username
+    });
+    
+    // Crear documento de usuario en Firestore con los 7 campos
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      email,
+      username,
+      age,
+      school,
+      grade,
+      interests,
+      totalPoints: 0,
+      mathPoints: 0,
+      memoryPoints: 0,
+      logicPoints: 0,
+      bestStreak: 0,
+      gamesPlayed: 0,
+      createdAt: serverTimestamp()
+    });
+    
+    showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+  } catch (error) {
+    console.error("Error al registrar:", error);
+    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
+  }
+}
 
 async function loadProfile() {
   if (!currentUser) return;
@@ -575,25 +628,27 @@ async function loadProfile() {
 }
 
 function updateProfileUI(userData) {
-  const profileName = document.getElementById('profile-name');
-  const profileEmail = document.getElementById('profile-email');
-  const profilePoints = document.getElementById('profile-points');
-  const profileLevel = document.getElementById('profile-level');
+  document.getElementById('profile-name').textContent = currentUser.displayName || currentUser.email.split('@')[0];
+  document.getElementById('profile-email').textContent = currentUser.email;
+  document.getElementById('profile-age').querySelector('span').textContent = userData.age || '--';
+  document.getElementById('profile-school').querySelector('span').textContent = userData.school || '--';
+  document.getElementById('profile-grade').querySelector('span').textContent = userData.grade || '--';
+  document.getElementById('profile-interests').querySelector('span').textContent = userData.interests || '--';
+  document.getElementById('profile-points').textContent = userData.totalPoints || 0;
+  document.getElementById('profile-level').textContent = calculateLevel(userData.totalPoints || 0);
   
-  if (profileName) profileName.textContent = currentUser.displayName || currentUser.email.split('@')[0];
-  if (profileEmail) profileEmail.textContent = currentUser.email;
-  if (profilePoints) profilePoints.textContent = userData.totalPoints || 0;
-  if (profileLevel) profileLevel.textContent = calculateLevel(userData.totalPoints || 0);
-  
-  const authForms = document.getElementById('auth-forms');
-  const profileInfo = document.getElementById('profile-info');
-  
-  if (authForms) authForms.style.display = 'none';
-  if (profileInfo) profileInfo.style.display = 'block';
+  document.getElementById('auth-forms').style.display = 'none';
+  document.getElementById('profile-info').style.display = 'block';
 }
 
-function calculateLevel(points) {
-  return Math.floor(points / 1000) + 1;
+async function handleLogout() {
+  try {
+    await signOut(auth);
+    showResultModal('Éxito', 'Sesión cerrada correctamente', 'success');
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error);
+    showResultModal('Error', 'No se pudo cerrar la sesión', 'error');
+  }
 }
 
 // ======================
@@ -675,34 +730,41 @@ function startMemoryTimer() {
   }, 1000);
 }
 
-function showResultModal(title, message, type) {
-  const resultModal = document.getElementById('result-modal');
+function showResultModal(title, message, type, buttons = [{ text: 'OK', action: () => {} }]) {
+  const modal = document.getElementById('result-modal');
   const modalTitle = document.getElementById('modal-title');
   const modalContent = document.getElementById('modal-content');
-  
-  if (!resultModal || !modalTitle || !modalContent) return;
+  const modalButton = document.getElementById('modal-button');
   
   modalTitle.textContent = title;
   modalContent.innerHTML = `<p>${message}</p>`;
-  modalContent.className = type;
-  resultModal.style.display = 'block';
-}
-
-function showErrorScreen(message) {
-  const appContent = document.getElementById('app-content');
-  if (appContent) {
-    appContent.innerHTML = `
-      <div class="error-container">
-        <h2>¡Ups! Algo salió mal</h2>
-        <p>${message}</p>
-        <button onclick="window.location.reload()" class="btn primary">Recargar</button>
-      </div>
-    `;
-    appContent.style.display = 'block';
+  modal.className = `modal ${type}`;
+  
+  // Configurar botones dinámicos
+  modalButton.innerHTML = '';
+  if (buttons.length > 0) {
+    modalButton.textContent = buttons[0].text;
+    modalButton.onclick = () => {
+      buttons[0].action();
+      modal.style.display = 'none';
+    };
   }
   
-  const splashScreen = document.getElementById('splash');
-  if (splashScreen) splashScreen.style.display = 'none';
+  modal.style.display = 'flex';
+}
+
+function getAuthErrorMessage(errorCode) {
+  const messages = {
+    'auth/invalid-email': 'El correo electrónico no es válido',
+    'auth/user-disabled': 'Esta cuenta ha sido deshabilitada',
+    'auth/user-not-found': 'No existe una cuenta con este correo',
+    'auth/wrong-password': 'Contraseña incorrecta',
+    'auth/email-already-in-use': 'Este correo ya está registrado',
+    'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
+    'auth/operation-not-allowed': 'Esta operación no está permitida'
+  };
+  
+  return messages[errorCode] || 'Ocurrió un error inesperado';
 }
 
 function shuffleArray(array) {
@@ -744,90 +806,8 @@ function generateAnswerOptions(correctAnswer, numOptions) {
   return shuffleArray(answers);
 }
 
-// ======================
-// AUTENTICACIÓN
-// ======================
-
-async function handleLogin() {
-  const email = document.getElementById('login-email')?.value;
-  const password = document.getElementById('login-password')?.value;
-  
-  if (!email || !password) {
-    showResultModal('Error', 'Por favor ingresa email y contraseña', 'error');
-    return;
-  }
-
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    showResultModal('Éxito', 'Inicio de sesión correcto', 'success');
-  } catch (error) {
-    console.error("Error al iniciar sesión:", error);
-    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
-  }
-}
-
-async function handleSignup() {
-  const email = document.getElementById('signup-email')?.value;
-  const password = document.getElementById('signup-password')?.value;
-  const username = document.getElementById('signup-username')?.value;
-  
-  if (!email || !password || !username) {
-    showResultModal('Error', 'Por favor completa todos los campos', 'error');
-    return;
-  }
-
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Actualizar perfil con nombre de usuario
-    await updateProfile(auth.currentUser, {
-      displayName: username
-    });
-    
-    // Crear documento de usuario en Firestore
-    await setDoc(doc(db, "users", userCredential.user.uid), {
-      email,
-      username,
-      totalPoints: 0,
-      mathPoints: 0,
-      memoryPoints: 0,
-      logicPoints: 0,
-      bestStreak: 0,
-      gamesPlayed: 0,
-      createdAt: serverTimestamp()
-    });
-    
-    showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
-    document.getElementById('signup-form').style.display = 'none';
-    document.getElementById('login-form').style.display = 'block';
-  } catch (error) {
-    console.error("Error al registrar:", error);
-    showResultModal('Error', getAuthErrorMessage(error.code), 'error');
-  }
-}
-
-function getAuthErrorMessage(errorCode) {
-  const messages = {
-    'auth/invalid-email': 'El correo electrónico no es válido',
-    'auth/user-disabled': 'Esta cuenta ha sido deshabilitada',
-    'auth/user-not-found': 'No existe una cuenta con este correo',
-    'auth/wrong-password': 'Contraseña incorrecta',
-    'auth/email-already-in-use': 'Este correo ya está registrado',
-    'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
-    'auth/operation-not-allowed': 'Esta operación no está permitida'
-  };
-  
-  return messages[errorCode] || 'Ocurrió un error inesperado';
-}
-
-async function handleLogout() {
-  try {
-    await signOut(auth);
-    showResultModal('Éxito', 'Sesión cerrada correctamente', 'success');
-  } catch (error) {
-    console.error("Error al cerrar sesión:", error);
-    showResultModal('Error', 'No se pudo cerrar la sesión', 'error');
-  }
+function calculateLevel(points) {
+  return Math.floor(points / 1000) + 1;
 }
 
 // ======================
@@ -871,6 +851,22 @@ async function saveMemoryProgress(pointsEarned, level, moves, time) {
   }
 }
 
+async function saveLogicProgress(isCorrect) {
+  if (!currentUser) return;
+  
+  try {
+    await addDoc(collection(db, `users/${currentUser.uid}/logicProgress`), {
+      isCorrect,
+      problem: currentLogicProblem.question,
+      timestamp: serverTimestamp()
+    });
+    
+    await updateUserStats(isCorrect ? 15 : 0, 0, currentStreak);
+  } catch (error) {
+    console.error("Error guardando progreso de lógica:", error);
+  }
+}
+
 async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0, streak = 0) {
   if (!currentUser) return;
   
@@ -886,7 +882,7 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0
     const bestStreak = Math.max(streak, currentData.bestStreak || 0);
     const gamesPlayed = (currentData.gamesPlayed || 0) + 1;
     
-    await setDoc(userRef, {
+    await updateDoc(userRef, {
       totalPoints: currentTotal + mathPoints + memoryPoints + logicPoints,
       mathPoints: currentMath + mathPoints,
       memoryPoints: currentMemory + memoryPoints,
@@ -894,7 +890,7 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0
       bestStreak,
       gamesPlayed,
       lastPlayed: serverTimestamp()
-    }, { merge: true });
+    });
     
     if (userSnap.exists()) loadProfile();
   } catch (error) {
@@ -960,19 +956,18 @@ function setupEventListeners() {
   
   // Salir del juego
   document.getElementById('exit-game-btn')?.addEventListener('click', () => {
-    if (confirm('¿Estás seguro de que quieres salir del juego?')) {
-      currentScore = 0;
-      currentStreak = 0;
-      updateScoreUI();
-      generateMathProblem();
-    }
+    showResultModal('Salir', '¿Estás seguro de que quieres salir del juego?', 'warning', [
+      { text: 'Cancelar', action: () => {} },
+      { text: 'Salir', action: () => {
+        currentScore = 0;
+        currentStreak = 0;
+        updateScoreUI();
+        generateMathProblem();
+      }}
+    ]);
   });
   
   // Modal
-  document.getElementById('modal-button')?.addEventListener('click', () => {
-    document.getElementById('result-modal').style.display = 'none';
-  });
-  
   document.querySelector('.close-modal')?.addEventListener('click', () => {
     document.getElementById('result-modal').style.display = 'none';
   });
