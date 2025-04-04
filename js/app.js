@@ -26,13 +26,13 @@ const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
 
 // Configuración de Firebase
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "logic-game-2bec1.firebaseapp.com",
-  projectId: "logic-game-2bec1",
-  storageBucket: "logic-game-2bec1.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
-};
+    apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
+    authDomain: "logic-game-2bec1.firebaseapp.com",
+    projectId: "logic-game-2bec1",
+    storageBucket: "logic-game-2bec1.firebasestorage.app",
+    messagingSenderId: "49694670172",
+    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
+  };
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
