@@ -1,3 +1,4 @@
+
 // Importar Firebase y sus módulos (Asegúrate que las rutas sean correctas si los descargas)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
