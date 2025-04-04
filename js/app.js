@@ -4,54 +4,64 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebas
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
-const DECK_API_URL = 'https://deckofcardsapi.com/api/deck';
-let currentDeckId = null;
-let remainingCards = 0;
+// ======================
+// CONFIGURACIÓN DE API
+// ======================
 
-// Función para inicializar una nueva baraja
-async function initNewDeck() {
-    try {
-        const response = await fetch(`${DECK_API_URL}/new/shuffle/?deck_count=1`);
-        const data = await response.json();
+const ApiConfig = {
+    baseUrl: 'https://deckofcardsapi.com/api',
+    endpoints: {
+        newDeck: '/deck/new/shuffle/',
+        drawCards: '/deck/{deck_id}/draw/'
+    },
+    defaultParams: {
+        deck_count: 1
+    }
+};
+
+class DeckOfCardsAPI {
+    constructor(config) {
+        this.config = config;
+        this.currentDeckId = null;
+        this.remainingCards = 0;
+    }
+
+    async _fetchApi(endpoint, params = {}) {
+        const urlParams = new URLSearchParams({...this.config.defaultParams, ...params}).toString();
+        const url = `${this.config.baseUrl}${endpoint}?${urlParams}`;
         
-        if (!data.success) {
-            throw new Error('Error al crear baraja');
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Error en la petición a la API');
+            return await response.json();
+        } catch (error) {
+            console.error("Error en DeckOfCardsAPI:", error);
+            throw error;
+        }
+    }
+
+    async initNewDeck() {
+        const data = await this._fetchApi(this.config.endpoints.newDeck);
+        this.currentDeckId = data.deck_id;
+        this.remainingCards = data.remaining;
+        return data;
+    }
+
+    async drawCards(count = 1) {
+        if (!this.currentDeckId || this.remainingCards < count) {
+            await this.initNewDeck();
         }
         
-        currentDeckId = data.deck_id;
-        remainingCards = data.remaining;
-        console.log(`Baraja creada: ${currentDeckId}`);
-        return true;
-    } catch (error) {
-        console.error("Error inicializando baraja:", error);
-        showErrorToUser("No se pudo crear la baraja de cartas");
-        return false;
+        const endpoint = this.config.endpoints.drawCards.replace('{deck_id}', this.currentDeckId);
+        const data = await this._fetchApi(endpoint, {count});
+        
+        this.remainingCards = data.remaining;
+        return data;
     }
 }
 
-// Función para robar cartas
-async function drawCards(count = 1) {
-    if (!currentDeckId || remainingCards < count) {
-        await initNewDeck();
-    }
-    
-    try {
-        const response = await fetch(`${DECK_API_URL}/${currentDeckId}/draw/?count=${count}`);
-        const data = await response.json();
-        
-        if (!data.success) {
-            throw new Error('Error al robar cartas');
-        }
-        
-        remainingCards = data.remaining;
-        updateRemainingCardsUI(); // Actualizar UI
-        return data.cards;
-    } catch (error) {
-        console.error("Error robando cartas:", error);
-        showErrorToUser("No se pudieron obtener cartas");
-        return null;
-    }
-}
+// Instancia global de la API de cartas
+const cardsApi = new DeckOfCardsAPI(ApiConfig);
 
 // ======================
 // VARIABLES GLOBALES
@@ -60,40 +70,48 @@ let app, auth, db; // Firebase variables
 const splashScreen = document.getElementById('splash');
 const appContent = document.getElementById('app-content');
 
-// Variables del juego
-let userFavorites = [];
+// Variables globales del juego
 let currentUser = null;
-let currentCard = null;
-
-// Variables para juegos educativos
 let currentScore = 0;
 let currentStreak = 0;
-let gameTimer = null;
-let timeLeft = 60;
 let currentDifficulty = 'medio';
-let kidsMode = false;
-
-// Variables para el juego de memoria
+let currentMathProblem = null;
+let currentMemoryLevel = 1;
+let memoryGameActive = false;
 let memoryCards = [];
 let flippedCards = [];
 let matchedPairs = 0;
-let totalPairs = 0;
 let memoryMoves = 0;
-let memoryGameActive = false;
-let currentMemoryLevel = 1;
 let memoryGameTime = 0;
+let totalPairs = 0;
+let gameTimer = null;
 let memoryTimer = null;
+let timeLeft = 60;
 
-// Variables para el juego matemático
-let currentMathProblem = null;
-let correctAnswer = null;
-let mathOperations = ['suma', 'resta', 'multiplicacion', 'division'];
+const mathOperations = ['suma', 'resta', 'multiplicacion', 'division'];
+
+// Elementos del DOM
+const cardDisplay = document.getElementById('card-display');
+const problemDisplay = document.getElementById('problem-display');
+const answerOptions = document.getElementById('answer-options');
+const currentScoreDisplay = document.getElementById('current-score');
+const currentStreakDisplay = document.getElementById('current-streak');
+const remainingCardsDisplay = document.getElementById('remaining-cards');
+const shuffleBtn = document.getElementById('shuffle-btn');
+const newProblemBtn = document.getElementById('new-problem-btn');
+const difficultySelect = document.getElementById('difficulty-select');
+const loadingScreen = document.getElementById('loading-screen');
+const errorDisplay = document.getElementById('error-display');
+const resultModal = document.getElementById('result-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalContent = document.getElementById('modal-content');
+const memoryGameDiv = document.getElementById('memory-game');
+const memoryResultDiv = document.getElementById('memory-result');
 
 // ======================
 // FUNCIONES DE INICIALIZACIÓN
 // ======================
 
-// Función principal de inicialización
 async function initApp() {
     try {
         // Mostrar splash screen
@@ -102,9 +120,6 @@ async function initApp() {
         
         // Inicializar Firebase
         await initFirebase();
-        
-        // Inicializar baraja
-        await initDeck();
         
         // Configurar listeners
         setupEventListeners();
@@ -133,7 +148,6 @@ async function initApp() {
     }
 }
 
-// Función para mostrar pantalla de error
 function showErrorScreen() {
     if (appContent) {
         appContent.innerHTML = `
@@ -148,7 +162,6 @@ function showErrorScreen() {
     if (splashScreen) splashScreen.style.display = 'none';
 }
 
-// Inicializar Firebase
 async function initFirebase() {
     try {
         const firebaseConfig = {
@@ -158,7 +171,7 @@ async function initFirebase() {
             storageBucket: "logic-game-2bec1.firebasestorage.app",
             messagingSenderId: "49694670172",
             appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-          };
+        };
         
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -170,32 +183,39 @@ async function initFirebase() {
     }
 }
 
-// Inicializar baraja de cartas
-async function initDeck() {
-    try {
-        const response = await fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1');
-        if (!response.ok) throw new Error('Error al crear baraja');
-        
-        const data = await response.json();
-        currentDeckId = data.deck_id;
-        remainingCards = data.remaining;
-        console.log("Baraja inicializada:", currentDeckId);
-    } catch (error) {
-        console.error("Error inicializando baraja:", error);
-        throw new Error("No se pudo inicializar la baraja de cartas");
-    }
-}
-
-// Configurar event listeners
 function setupEventListeners() {
-    // Aquí irían todos los event listeners de tu aplicación
-    // Ejemplo:
-    document.getElementById('math-submit-btn')?.addEventListener('click', checkMathAnswer);
+    // Listeners para el juego matemático
+    if (newProblemBtn) newProblemBtn.addEventListener('click', generateMathProblem);
+    if (shuffleBtn) shuffleBtn.addEventListener('click', async () => {
+        await cardsApi.initNewDeck();
+        updateGameUI();
+    });
+    if (difficultySelect) difficultySelect.addEventListener('change', (e) => {
+        currentDifficulty = e.target.value;
+        if (currentMathProblem) generateMathProblem();
+    });
+
+    // Listeners para el juego de memoria
     document.getElementById('start-memory-btn')?.addEventListener('click', startMemoryGame);
-    // ... otros listeners
+    document.getElementById('next-level-btn')?.addEventListener('click', () => {
+        currentMemoryLevel = Math.min(5, currentMemoryLevel + 1);
+        document.getElementById('memory-level').value = currentMemoryLevel;
+        startMemoryGame();
+    });
+
+    // Listener para el modal
+    document.getElementById('modal-button')?.addEventListener('click', () => {
+        resultModal.style.display = 'none';
+    });
+
+    // Listener para verificación de respuesta matemática
+    answerOptions?.addEventListener('click', (e) => {
+        if (e.target.classList.contains('answer-btn')) {
+            checkMathAnswer(e);
+        }
+    });
 }
 
-// Verificar estado de autenticación
 function checkAuthState() {
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -208,9 +228,55 @@ function checkAuthState() {
     });
 }
 
-// Cargar configuración del usuario
+function updateAuthUI() {
+    const authSection = document.getElementById('auth-section');
+    const profileSection = document.getElementById('profile-section');
+    
+    if (currentUser) {
+        if (authSection) authSection.style.display = 'none';
+        if (profileSection) profileSection.style.display = 'block';
+    } else {
+        if (authSection) authSection.style.display = 'block';
+        if (profileSection) profileSection.style.display = 'none';
+    }
+}
+
+async function loadProfileDetails() {
+    if (!currentUser) return;
+    
+    try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            document.getElementById('profile-name').textContent = currentUser.displayName || currentUser.email;
+            document.getElementById('profile-points').textContent = userData.totalPoints || 0;
+            document.getElementById('profile-streak').textContent = userData.bestStreak || 0;
+            
+            // Actualizar puntuación global si es mayor
+            if (userData.totalPoints > currentScore) {
+                currentScore = userData.totalPoints;
+                updateScoreUI();
+            }
+        }
+    } catch (error) {
+        console.error("Error cargando perfil:", error);
+    }
+}
+
 function loadSettings() {
-    // Implementar según necesidades
+    const savedDifficulty = localStorage.getItem('gameDifficulty');
+    if (savedDifficulty && difficultySelect) {
+        difficultySelect.value = savedDifficulty;
+        currentDifficulty = savedDifficulty;
+    }
+    
+    const savedLevel = localStorage.getItem('memoryLevel');
+    if (savedLevel) {
+        currentMemoryLevel = parseInt(savedLevel);
+        document.getElementById('memory-level').value = currentMemoryLevel;
+    }
 }
 
 // ======================
@@ -218,17 +284,14 @@ function loadSettings() {
 // ======================
 
 async function generateMathProblem() {
-    if (!currentDeckId || remainingCards < 2) {
-        await initDeck();
-    }
-    
     try {
-        const response = await fetch(`https://deckofcardsapi.com/api/deck/${currentDeckId}/draw/?count=2`);
-        if (!response.ok) throw new Error('Error al robar cartas');
-        const data = await response.json();
+        clearInterval(gameTimer);
+        timeLeft = 60;
+        updateTimerUI();
+        
+        const data = await cardsApi.drawCards(2);
         
         if (data.success && data.cards.length === 2) {
-            remainingCards = data.remaining;
             updateGameUI();
             
             const card1 = data.cards[0];
@@ -239,11 +302,11 @@ async function generateMathProblem() {
             
             currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
             displayMathProblem();
+            startGameTimer();
         }
     } catch (error) {
         console.error("Error generando problema matemático:", error);
-        document.getElementById('problem-display').innerHTML = 
-            `<p class="error">Error al crear el problema. Intenta de nuevo.</p>`;
+        problemDisplay.innerHTML = `<p class="error">Error al crear el problema. Intenta de nuevo.</p>`;
     }
 }
 
@@ -303,7 +366,6 @@ function cardValueToNumber(value) {
 function displayMathProblem() {
     if (!currentMathProblem) return;
     
-    const cardDisplay = document.getElementById('card-display');
     cardDisplay.innerHTML = `
         <div class="math-card">
             <img src="${currentMathProblem.card1.image}" alt="${currentMathProblem.card1.value}">
@@ -314,25 +376,21 @@ function displayMathProblem() {
         </div>
     `;
     
-    document.getElementById('problem-display').innerHTML = `
+    problemDisplay.innerHTML = `
         <p>Resuelve:</p>
         <h2>${currentMathProblem.problem} = ?</h2>
     `;
     
-    const answerOptions = document.getElementById('answer-options');
     answerOptions.innerHTML = '';
     
-    const answers = generateAnswerOptions(currentMathProblem.answer, kidsMode ? 3 : 4);
+    const answers = generateAnswerOptions(currentMathProblem.answer, 4);
     answers.forEach(answer => {
         const button = document.createElement('button');
         button.className = 'answer-btn';
         button.textContent = answer;
         button.dataset.answer = answer;
-        button.addEventListener('click', checkMathAnswer);
         answerOptions.appendChild(button);
     });
-    
-    if (!gameTimer) startGameTimer();
 }
 
 function generateAnswerOptions(correctAnswer, numOptions) {
@@ -402,29 +460,29 @@ function calculatePoints() {
 
 async function startMemoryGame() {
     memoryGameActive = false;
-    document.getElementById('memory-result').innerHTML = '';
-    document.getElementById('memory-game').innerHTML = '<div class="spinner"></div>';
+    memoryResultDiv.innerHTML = '';
+    memoryGameDiv.innerHTML = '<div class="spinner"></div>';
     document.getElementById('start-memory-btn').disabled = true;
     
-    const level = parseInt(document.getElementById('memory-level').value);
-    totalPairs = getPairCountByLevel(level);
+    totalPairs = getPairCountByLevel(currentMemoryLevel);
     matchedPairs = 0;
     memoryMoves = 0;
     memoryGameTime = 0;
+    flippedCards = [];
     
     updateMemoryUI();
     
     try {
-        const uniqueCards = await fetchUniqueCardsForMemory(totalPairs);
-        if (!uniqueCards) throw new Error("No se pudieron obtener cartas");
+        const drawData = await cardsApi.drawCards(totalPairs);
+        if (!drawData.success) throw new Error("No se pudieron obtener cartas");
         
-        memoryCards = prepareMemoryCards(uniqueCards);
+        memoryCards = prepareMemoryCards(drawData.cards);
         renderMemoryBoard();
         startMemoryTimer();
         memoryGameActive = true;
     } catch (error) {
         console.error("Error iniciando juego de memoria:", error);
-        document.getElementById('memory-result').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        memoryResultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
     } finally {
         document.getElementById('start-memory-btn').disabled = false;
     }
@@ -451,7 +509,6 @@ function prepareMemoryCards(cards) {
 }
 
 function renderMemoryBoard() {
-    const memoryGameDiv = document.getElementById('memory-game');
     memoryGameDiv.innerHTML = '';
     
     const numCards = memoryCards.length;
@@ -543,7 +600,7 @@ function endMemoryGame(isCompleted) {
         currentScore += pointsEarned;
         updateScoreUI();
         
-        document.getElementById('memory-result').innerHTML = `
+        memoryResultDiv.innerHTML = `
             <div class="memory-result success">
                 <h3>¡Nivel completado!</h3>
                 <p>Movimientos: ${memoryMoves}</p>
@@ -552,12 +609,6 @@ function endMemoryGame(isCompleted) {
                 <button id="next-level-btn" class="btn primary">Siguiente Nivel</button>
             </div>
         `;
-        
-        document.getElementById('next-level-btn').addEventListener('click', () => {
-            currentMemoryLevel = Math.min(5, currentMemoryLevel + 1);
-            document.getElementById('memory-level').value = currentMemoryLevel;
-            startMemoryGame();
-        });
         
         if (currentUser) {
             saveMemoryProgress(pointsEarned, currentMemoryLevel, memoryMoves, memoryGameTime);
@@ -569,9 +620,16 @@ function endMemoryGame(isCompleted) {
 // FUNCIONES AUXILIARES
 // ======================
 
+function updateGameUI() {
+    if (remainingCardsDisplay) {
+        remainingCardsDisplay.textContent = cardsApi.remainingCards;
+    }
+    updateScoreUI();
+}
+
 function updateScoreUI() {
-    document.getElementById('current-score').textContent = currentScore;
-    document.getElementById('current-streak').textContent = currentStreak;
+    if (currentScoreDisplay) currentScoreDisplay.textContent = currentScore;
+    if (currentStreakDisplay) currentStreakDisplay.textContent = currentStreak;
     if (currentUser) document.getElementById('profile-points').textContent = currentScore;
 }
 
@@ -608,6 +666,13 @@ function startGameTimer() {
     }, 1000);
 }
 
+function updateTimerUI() {
+    const timerDisplay = document.getElementById('game-timer');
+    if (timerDisplay) {
+        timerDisplay.textContent = `Tiempo: ${timeLeft}s`;
+    }
+}
+
 function startMemoryTimer() {
     clearInterval(memoryTimer);
     memoryGameTime = 0;
@@ -620,21 +685,13 @@ function startMemoryTimer() {
 }
 
 function showResultModal(title, message, type) {
-    const modal = document.getElementById('result-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalContent = document.getElementById('modal-content');
-    
     modalTitle.textContent = title;
     modalContent.innerHTML = `<p>${message}</p>`;
     modalContent.className = type;
-    modal.style.display = 'block';
+    resultModal.style.display = 'block';
     
-    document.getElementById('modal-button').onclick = function() {
-        modal.style.display = 'none';
-    };
-    
-    modal.onclick = function(event) {
-        if (event.target === modal) modal.style.display = 'none';
+    resultModal.onclick = function(event) {
+        if (event.target === resultModal) resultModal.style.display = 'none';
     };
 }
 
