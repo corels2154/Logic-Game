@@ -755,13 +755,13 @@ loginForm.addEventListener('submit', async (e) => {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = registerForm.registerName.value;
-    const email = registerForm.registerEmail.value;
-    const password = registerForm.registerPassword.value;
-    const birthdate = registerForm.registerBirthdate.value;
-    const username = registerForm.registerUsername.value;
-    const country = registerForm.registerCountry.value;
-    const interests = registerForm.registerInterests.value;
+    const name = registerNameInput.value; // ¡Usa registerNameInput!
+    const email = registerEmailInput.value; // ¡Usa registerEmailInput!
+    const password = registerPasswordInput.value; // ¡Usa registerPasswordInput!
+    const birthdate = registerBirthdateInput.value; // ¡Usa registerBirthdateInput!
+    const username = registerUsernameInput.value; // ¡Usa registerUsernameInput!
+    const country = registerCountrySelect.value; // ¡Usa registerCountrySelect!
+    const interests = registerInterestsInput.value; // ¡Usa registerInterestsInput!
     registerErrorP.style.display = 'none'; // Ocultar errores previos
 
     if (password.length < 6) {
