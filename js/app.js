@@ -1,13 +1,95 @@
 
-// Importar Firebase y sus módulos
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+// Importar Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp,
+  query,
+  where,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
-// ======================
-// CONFIGURACIÓN DE API
-// ======================
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
 
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Variables globales
+let currentUser = null;
+let currentScore = 0;
+let currentStreak = 0;
+let currentDifficulty = 'medio';
+let currentMathProblem = null;
+let currentMemoryLevel = 1;
+let memoryGameActive = false;
+let memoryCards = [];
+let flippedCards = [];
+let matchedPairs = 0;
+let memoryMoves = 0;
+let memoryGameTime = 0;
+let gameTimer = null;
+let memoryTimer = null;
+let timeLeft = 60;
+
+const mathOperations = ['suma', 'resta', 'multiplicacion', 'division'];
+
+// Elementos del DOM (adaptados a tu HTML)
+const splashScreen = document.getElementById('splash');
+const appContent = document.getElementById('app-content');
+const currentScoreDisplay = document.getElementById('current-score');
+const currentStreakDisplay = document.getElementById('current-streak');
+const remainingCardsDisplay = document.getElementById('remaining-cards');
+const timeLeftDisplay = document.getElementById('time-left');
+const problemDisplay = document.getElementById('problem-display');
+const answerOptions = document.getElementById('answer-options');
+const cardDisplay = document.getElementById('card-display');
+const shuffleButton = document.getElementById('shuffle-button');
+const drawButton = document.getElementById('draw-button');
+const hintButton = document.getElementById('hint-button');
+const memoryGameDiv = document.getElementById('memory-game');
+const memoryResultDiv = document.getElementById('memory-result');
+const memoryLevelSelect = document.getElementById('memory-level-select');
+const memoryMovesDisplay = document.getElementById('memory-moves');
+const memoryTimeDisplay = document.getElementById('memory-time');
+const memoryPointsDisplay = document.getElementById('memory-points');
+const startMemoryButton = document.getElementById('start-memory-button');
+const resultModal = document.getElementById('result-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalContent = document.getElementById('modal-content');
+const modalButton = document.getElementById('modal-button');
+const profileInfo = document.getElementById('profile-info');
+const profilePic = document.getElementById('profile-pic');
+const profileName = document.getElementById('profile-name');
+const profileEmail = document.getElementById('profile-email');
+const profilePoints = document.getElementById('profile-points');
+const logoutButton = document.getElementById('logout-button');
+const difficultySelect = document.getElementById('difficulty-select');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const gameModeBtns = document.querySelectorAll('.game-mode-btn');
+
+// Configuración de la API de cartas
 const ApiConfig = {
     baseUrl: 'https://deckofcardsapi.com/api',
     endpoints: {
@@ -63,64 +145,9 @@ class DeckOfCardsAPI {
 // Instancia global de la API de cartas
 const cardsApi = new DeckOfCardsAPI(ApiConfig);
 
-// ======================
-// VARIABLES GLOBALES
-// ======================
-let app, auth, db; // Firebase variables
-const splashScreen = document.getElementById('splash');
-const appContent = document.getElementById('app-content');
-
-// Variables globales del juego
-let currentUser = null;
-let currentScore = 0;
-let currentStreak = 0;
-let currentDifficulty = 'medio';
-let currentMathProblem = null;
-let currentMemoryLevel = 1;
-let memoryGameActive = false;
-let memoryCards = [];
-let flippedCards = [];
-let matchedPairs = 0;
-let memoryMoves = 0;
-let memoryGameTime = 0;
-let totalPairs = 0;
-let gameTimer = null;
-let memoryTimer = null;
-let timeLeft = 60;
-
-const mathOperations = ['suma', 'resta', 'multiplicacion', 'division'];
-
-// Elementos del DOM
-const cardDisplay = document.getElementById('card-display');
-const problemDisplay = document.getElementById('problem-display');
-const answerOptions = document.getElementById('answer-options');
-const currentScoreDisplay = document.getElementById('current-score');
-const currentStreakDisplay = document.getElementById('current-streak');
-const remainingCardsDisplay = document.getElementById('remaining-cards');
-const shuffleBtn = document.getElementById('shuffle-btn');
-const newProblemBtn = document.getElementById('new-problem-btn');
-const difficultySelect = document.getElementById('difficulty-select');
-const loadingScreen = document.getElementById('loading-screen');
-const errorDisplay = document.getElementById('error-display');
-const resultModal = document.getElementById('result-modal');
-const modalTitle = document.getElementById('modal-title');
-const modalContent = document.getElementById('modal-content');
-const memoryGameDiv = document.getElementById('memory-game');
-const memoryResultDiv = document.getElementById('memory-result');
-
-// ======================
-// FUNCIONES DE INICIALIZACIÓN
-// ======================
-
+// Inicializar la aplicación
 async function initApp() {
     try {
-        // Mostrar splash screen
-        if (splashScreen) splashScreen.style.display = 'flex';
-        if (appContent) appContent.style.display = 'none';
-        
-        // Inicializar Firebase
-        await initFirebase();
-        
         // Configurar listeners
         setupEventListeners();
         
@@ -135,11 +162,8 @@ async function initApp() {
             if (splashScreen) splashScreen.style.display = 'none';
             if (appContent) appContent.style.display = 'block';
             
-            // Iniciar el juego según la pestaña activa
-            const activeTab = document.querySelector('.tab-content.active');
-            if (activeTab && activeTab.id === 'juego') {
-                generateMathProblem();
-            }
+            // Iniciar el juego matemático por defecto
+            generateMathProblem();
         }, 2000);
         
     } catch (error) {
@@ -162,127 +186,85 @@ function showErrorScreen() {
     if (splashScreen) splashScreen.style.display = 'none';
 }
 
-async function initFirebase() {
-    try {
-        const firebaseConfig = {
-            apiKey: "AIzaSyB2nux4LCuAsq6YNNUjv3BJUrjSmodo4yo",
-            authDomain: "logic-game-2bec1.firebaseapp.com",
-            projectId: "logic-game-2bec1",
-            storageBucket: "logic-game-2bec1.firebasestorage.app",
-            messagingSenderId: "49694670172",
-            appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
-          };
-        
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        console.log("Firebase inicializado correctamente");
-    } catch (error) {
-        console.error("Error inicializando Firebase:", error);
-        throw new Error("No se pudo conectar con Firebase");
-    }
-}
-
 function setupEventListeners() {
-    // Listeners para el juego matemático
-    if (newProblemBtn) newProblemBtn.addEventListener('click', generateMathProblem);
-    if (shuffleBtn) shuffleBtn.addEventListener('click', async () => {
+    // Tabs
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    
+    // Modos de juego
+    gameModeBtns.forEach(btn => {
+        btn.addEventListener('click', () => switchGameMode(btn.dataset.mode));
+    });
+    
+    // Juego matemático
+    if (shuffleButton) shuffleButton.addEventListener('click', async () => {
         await cardsApi.initNewDeck();
         updateGameUI();
     });
+    
+    if (drawButton) drawButton.addEventListener('click', generateMathProblem);
+    
     if (difficultySelect) difficultySelect.addEventListener('change', (e) => {
         currentDifficulty = e.target.value;
+        localStorage.setItem('gameDifficulty', currentDifficulty);
         if (currentMathProblem) generateMathProblem();
     });
-
-    // Listeners para el juego de memoria
-    document.getElementById('start-memory-btn')?.addEventListener('click', startMemoryGame);
-    document.getElementById('next-level-btn')?.addEventListener('click', () => {
-        currentMemoryLevel = Math.min(5, currentMemoryLevel + 1);
-        document.getElementById('memory-level').value = currentMemoryLevel;
-        startMemoryGame();
-    });
-
-    // Listener para el modal
-    document.getElementById('modal-button')?.addEventListener('click', () => {
+    
+    // Juego de memoria
+    if (startMemoryButton) startMemoryButton.addEventListener('click', startMemoryGame);
+    
+    // Perfil
+    if (logoutButton) logoutButton.addEventListener('click', handleLogout);
+    
+    // Modal
+    if (modalButton) modalButton.addEventListener('click', () => {
         resultModal.style.display = 'none';
     });
-
-    // Listener para verificación de respuesta matemática
-    answerOptions?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('answer-btn')) {
-            checkMathAnswer(e);
-        }
+    
+    document.querySelector('.close-modal')?.addEventListener('click', () => {
+        resultModal.style.display = 'none';
     });
 }
 
-function checkAuthState() {
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            loadProfileDetails();
-        } else {
-            currentUser = null;
-        }
-        updateAuthUI();
+function switchTab(tabId) {
+    // Actualizar botones de tab
+    tabBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
-}
-
-function updateAuthUI() {
-    const authSection = document.getElementById('auth-section');
-    const profileSection = document.getElementById('profile-section');
     
-    if (currentUser) {
-        if (authSection) authSection.style.display = 'none';
-        if (profileSection) profileSection.style.display = 'block';
-    } else {
-        if (authSection) authSection.style.display = 'block';
-        if (profileSection) profileSection.style.display = 'none';
-    }
-}
-
-async function loadProfileDetails() {
-    if (!currentUser) return;
+    // Actualizar contenido de tab
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === tabId);
+    });
     
-    try {
-        const userRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            document.getElementById('profile-name').textContent = currentUser.displayName || currentUser.email;
-            document.getElementById('profile-points').textContent = userData.totalPoints || 0;
-            document.getElementById('profile-streak').textContent = userData.bestStreak || 0;
-            
-            // Actualizar puntuación global si es mayor
-            if (userData.totalPoints > currentScore) {
-                currentScore = userData.totalPoints;
-                updateScoreUI();
-            }
-        }
-    } catch (error) {
-        console.error("Error cargando perfil:", error);
+    // Iniciar juegos según la pestaña
+    if (tabId === 'juego') {
+        generateMathProblem();
+    } else if (tabId === 'perfil') {
+        loadProfileDetails();
     }
 }
 
-function loadSettings() {
-    const savedDifficulty = localStorage.getItem('gameDifficulty');
-    if (savedDifficulty && difficultySelect) {
-        difficultySelect.value = savedDifficulty;
-        currentDifficulty = savedDifficulty;
-    }
+function switchGameMode(mode) {
+    // Actualizar botones de modo
+    gameModeBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
     
-    const savedLevel = localStorage.getItem('memoryLevel');
-    if (savedLevel) {
-        currentMemoryLevel = parseInt(savedLevel);
-        document.getElementById('memory-level').value = currentMemoryLevel;
+    // Mostrar el modo seleccionado
+    document.getElementById('math-game').style.display = mode === 'math' ? 'block' : 'none';
+    document.getElementById('memory-game-container').style.display = mode === 'memory' ? 'block' : 'none';
+    document.getElementById('logic-game-container').style.display = mode === 'logic' ? 'block' : 'none';
+    
+    if (mode === 'math') {
+        generateMathProblem();
+    } else if (mode === 'memory') {
+        startMemoryGame();
     }
 }
 
-// ======================
-// JUEGO MATEMÁTICO
-// ======================
-
+// Juego matemático
 async function generateMathProblem() {
     try {
         clearInterval(gameTimer);
@@ -377,8 +359,7 @@ function displayMathProblem() {
     `;
     
     problemDisplay.innerHTML = `
-        <p>Resuelve:</p>
-        <h2>${currentMathProblem.problem} = ?</h2>
+        <h3>${currentMathProblem.problem} = ?</h3>
     `;
     
     answerOptions.innerHTML = '';
@@ -389,6 +370,7 @@ function displayMathProblem() {
         button.className = 'answer-btn';
         button.textContent = answer;
         button.dataset.answer = answer;
+        button.addEventListener('click', checkMathAnswer);
         answerOptions.appendChild(button);
     });
 }
@@ -454,15 +436,12 @@ function calculatePoints() {
     return basePoints + streakBonus;
 }
 
-// ======================
-// JUEGO DE MEMORIA
-// ======================
-
+// Juego de memoria
 async function startMemoryGame() {
     memoryGameActive = false;
     memoryResultDiv.innerHTML = '';
     memoryGameDiv.innerHTML = '<div class="spinner"></div>';
-    document.getElementById('start-memory-btn').disabled = true;
+    startMemoryButton.disabled = true;
     
     totalPairs = getPairCountByLevel(currentMemoryLevel);
     matchedPairs = 0;
@@ -484,7 +463,7 @@ async function startMemoryGame() {
         console.error("Error iniciando juego de memoria:", error);
         memoryResultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
     } finally {
-        document.getElementById('start-memory-btn').disabled = false;
+        startMemoryButton.disabled = false;
     }
 }
 
@@ -523,7 +502,7 @@ function renderMemoryBoard() {
         cardElement.innerHTML = `
             <div class="memory-card-inner">
                 <div class="memory-card-front">
-                    <img src="assets/images/card-back.png" alt="Carta boca abajo">
+                    <img src="https://deckofcardsapi.com/static/img/back.png" alt="Carta boca abajo">
                 </div>
                 <div class="memory-card-back">
                     <img src="${card.image}" alt="${card.value} of ${card.suit}">
@@ -606,7 +585,6 @@ function endMemoryGame(isCompleted) {
                 <p>Movimientos: ${memoryMoves}</p>
                 <p>Tiempo: ${formatTime(memoryGameTime)}</p>
                 <p>Puntos ganados: ${pointsEarned}</p>
-                <button id="next-level-btn" class="btn primary">Siguiente Nivel</button>
             </div>
         `;
         
@@ -616,10 +594,7 @@ function endMemoryGame(isCompleted) {
     }
 }
 
-// ======================
-// FUNCIONES AUXILIARES
-// ======================
-
+// Funciones auxiliares
 function updateGameUI() {
     if (remainingCardsDisplay) {
         remainingCardsDisplay.textContent = cardsApi.remainingCards;
@@ -630,12 +605,13 @@ function updateGameUI() {
 function updateScoreUI() {
     if (currentScoreDisplay) currentScoreDisplay.textContent = currentScore;
     if (currentStreakDisplay) currentStreakDisplay.textContent = currentStreak;
-    if (currentUser) document.getElementById('profile-points').textContent = currentScore;
+    if (currentUser && profilePoints) profilePoints.textContent = currentScore;
 }
 
 function updateMemoryUI() {
-    document.getElementById('memory-moves').textContent = memoryMoves;
-    document.getElementById('memory-time').textContent = formatTime(memoryGameTime);
+    if (memoryMovesDisplay) memoryMovesDisplay.textContent = memoryMoves;
+    if (memoryTimeDisplay) memoryTimeDisplay.textContent = formatTime(memoryGameTime);
+    if (memoryPointsDisplay) memoryPointsDisplay.textContent = currentScore;
 }
 
 function formatTime(seconds) {
@@ -667,9 +643,8 @@ function startGameTimer() {
 }
 
 function updateTimerUI() {
-    const timerDisplay = document.getElementById('game-timer');
-    if (timerDisplay) {
-        timerDisplay.textContent = `Tiempo: ${timeLeft}s`;
+    if (timeLeftDisplay) {
+        timeLeftDisplay.textContent = timeLeft;
     }
 }
 
@@ -685,14 +660,12 @@ function startMemoryTimer() {
 }
 
 function showResultModal(title, message, type) {
-    modalTitle.textContent = title;
-    modalContent.innerHTML = `<p>${message}</p>`;
-    modalContent.className = type;
-    resultModal.style.display = 'block';
-    
-    resultModal.onclick = function(event) {
-        if (event.target === resultModal) resultModal.style.display = 'none';
-    };
+    if (modalTitle) modalTitle.textContent = title;
+    if (modalContent) {
+        modalContent.innerHTML = `<p>${message}</p>`;
+        modalContent.className = type;
+    }
+    if (resultModal) resultModal.style.display = 'block';
 }
 
 function shuffleArray(array) {
@@ -714,10 +687,107 @@ function getOperationSymbol(operation) {
     }
 }
 
-// ======================
-// INTEGRACIÓN CON FIREBASE
-// ======================
+// Autenticación y perfil
+async function handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showResultModal('Éxito', 'Inicio de sesión correcto', 'success');
+    } catch (error) {
+        console.error("Error al iniciar sesión:", error);
+        showResultModal('Error', 'Usuario o contraseña incorrectos', 'error');
+    }
+}
 
+async function handleSignup() {
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Crear documento de usuario en Firestore
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+            email: email,
+            totalPoints: 0,
+            mathPoints: 0,
+            memoryPoints: 0,
+            bestStreak: 0,
+            gamesPlayed: 0,
+            createdAt: serverTimestamp()
+        });
+        
+        showResultModal('Éxito', 'Usuario registrado correctamente', 'success');
+    } catch (error) {
+        console.error("Error al registrar:", error);
+        showResultModal('Error', error.message, 'error');
+    }
+}
+
+async function handleLogout() {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+    }
+}
+
+function checkAuthState() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            loadProfileDetails();
+            document.getElementById('auth-forms').style.display = 'none';
+            document.getElementById('profile-info').style.display = 'block';
+        } else {
+            currentUser = null;
+            document.getElementById('auth-forms').style.display = 'block';
+            document.getElementById('profile-info').style.display = 'none';
+        }
+    });
+}
+
+async function loadProfileDetails() {
+    if (!currentUser) return;
+    
+    try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            
+            if (profileName) profileName.textContent = currentUser.displayName || currentUser.email.split('@')[0];
+            if (profileEmail) profileEmail.textContent = currentUser.email;
+            if (profilePoints) profilePoints.textContent = userData.totalPoints || 0;
+            
+            // Actualizar puntuación global si es mayor
+            if (userData.totalPoints > currentScore) {
+                currentScore = userData.totalPoints;
+                updateScoreUI();
+            }
+        }
+    } catch (error) {
+        console.error("Error cargando perfil:", error);
+    }
+}
+
+function loadSettings() {
+    const savedDifficulty = localStorage.getItem('gameDifficulty');
+    if (savedDifficulty && difficultySelect) {
+        difficultySelect.value = savedDifficulty;
+        currentDifficulty = savedDifficulty;
+    }
+    
+    const savedLevel = localStorage.getItem('memoryLevel');
+    if (savedLevel && memoryLevelSelect) {
+        currentMemoryLevel = parseInt(savedLevel);
+        memoryLevelSelect.value = currentMemoryLevel;
+    }
+}
+
+// Guardar progreso
 async function saveMathProgress(operation, isCorrect) {
     if (!currentUser) return;
     
@@ -769,12 +839,14 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
         const currentMath = currentData.mathPoints || 0;
         const currentMemory = currentData.memoryPoints || 0;
         const bestStreak = Math.max(streak, currentData.bestStreak || 0);
+        const gamesPlayed = (currentData.gamesPlayed || 0) + 1;
         
         await setDoc(userRef, {
             totalPoints: currentTotal + mathPoints + memoryPoints,
             mathPoints: currentMath + mathPoints,
             memoryPoints: currentMemory + memoryPoints,
             bestStreak: bestStreak,
+            gamesPlayed: gamesPlayed,
             lastPlayed: serverTimestamp()
         }, { merge: true });
         
@@ -784,14 +856,5 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, streak = 0) {
     }
 }
 
-// ======================
-// INICIO DE LA APLICACIÓN
-// ======================
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (splashScreen) splashScreen.style.display = 'none';
-        if (appContent) appContent.style.display = 'block';
-        initApp();
-    }, 2000);
-});
+// Iniciar la aplicación
+document.addEventListener('DOMContentLoaded', initApp);
