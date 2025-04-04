@@ -7,13 +7,14 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getD
 // CONFIGURACIÓN DE FIREBASE (¡¡¡IMPORTANTE: RELLENA ESTO!!!)
 // ======================
 const firebaseConfig = {
-  apiKey: "TU_API_KEY", // <-- RELLENA ESTO
-  authDomain: "TU_AUTH_DOMAIN", // logic-game-2bec1.firebaseapp.com <-- RELLENA ESTO
-  projectId: "TU_PROJECT_ID", // logic-game-2bec1 <-- RELLENA ESTO
-  storageBucket: "TU_STORAGE_BUCKET", // logic-game-2bec1.appspot.com <-- RELLENA ESTO
-  messagingSenderId: "TU_MESSAGING_SENDER_ID", // <-- RELLENA ESTO
-  appId: "TU_APP_ID" // <-- RELLENA ESTO
-};
+    apiKey: "AIzaSyDU9eUVNvAhKoB_7fCR4YAQET3NIQwTAYA",
+    authDomain: "logic-game-2bec1.firebaseapp.com",
+    projectId: "logic-game-2bec1",
+    storageBucket: "logic-game-2bec1.firebasestorage.app",
+    messagingSenderId: "49694670172",
+    appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
+  };
+  
 // Inicializar Firebase
 let app, auth, db;
 try {
