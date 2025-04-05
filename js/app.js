@@ -281,29 +281,24 @@ async function generateMathProblem() {
         }, 2000);
     }
 }
-// Agrega esto en la sección de funciones auxiliares (antes de displayMathProblem)
+
 function generateAnswerOptions(correctAnswer, numOptions) {
     let options = [correctAnswer];
     
     while (options.length < numOptions) {
-        // Variación aleatoria entre 1 y 10
         let variation = Math.floor(Math.random() * 10) + 1;
         
-        // Para multiplicación/división, usar variación más pequeña
         if (currentMathProblem?.operation === 'multiplicacion' || 
             currentMathProblem?.operation === 'division') {
             variation = Math.floor(Math.random() * 5) + 1;
         }
         
-        // Alternar entre sumar y restar la variación
         const newOption = options.length % 2 === 0 
             ? correctAnswer + variation 
             : correctAnswer - variation;
         
-        // Evitar números negativos en dificultad fácil
         if (currentDifficulty === 'facil' && newOption < 0) continue;
         
-        // Evitar duplicados
         if (!options.includes(newOption)) {
             options.push(newOption);
         }
@@ -312,7 +307,6 @@ function generateAnswerOptions(correctAnswer, numOptions) {
     return shuffleArray(options);
 }
 
-// Función necesaria para mezclar las opciones
 function shuffleArray(array) {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
@@ -704,7 +698,6 @@ function renderMultiplicationTables() {
     });
 }
 
-//CORRECTO (conserva SOLO esta versión)
 function initFractionGame() {
     cardsApi.drawCards(8).then(data => {
         if (!data.cards || data.cards.length < 8) {
@@ -717,7 +710,24 @@ function initFractionGame() {
         }
 
         const fractions = [];
-        // ... resto del código ...
+        for (let i = 0; i < 4; i++) {
+            const card1 = validCards[i * 2];
+            const card2 = validCards[i * 2 + 1];
+            
+            const value1 = cardValueToNumber(card1.value);
+            const value2 = cardValueToNumber(card2.value);
+            
+            const denominator = value2 === 0 ? 1 : value2;
+            fractions.push({
+                numerator: value1,
+                denominator: denominator,
+                value: value1 / denominator,
+                card1: card1,
+                card2: card2
+            });
+        }
+        
+        renderFractionGame(fractions);
     }).catch(error => {
         console.error("Error:", error);
         document.getElementById('fraction-game').innerHTML = `
@@ -726,134 +736,74 @@ function initFractionGame() {
     });
 }
 
-// Versión corregida del código problemático
 function renderFractionGame(fractions) {
     const fractionGame = document.getElementById('fraction-game');
-    if (!fractionGame) return;
-
-    // Limpia el contenedor de forma segura
-    while (fractionGame.firstChild) {
-        fractionGame.removeChild(fractionGame.firstChild);
-    }
-
-    // Verifica que fractions sea un array válido
-    if (!Array.isArray(fractions)) {
-        const errorMsg = document.createElement('p');
-        errorMsg.className = 'error-message';
-        errorMsg.textContent = 'Error: Datos de fracciones inválidos';
-        fractionGame.appendChild(errorMsg);
+    
+    if (!fractionGame) {
+        console.error('No se encontró el elemento con ID "fraction-game"');
         return;
     }
 
-    // Procesa cada fracción con validación
+    fractionGame.innerHTML = '';
+
+    if (!Array.isArray(fractions)) {
+        const errorElement = document.createElement('p');
+        errorElement.className = 'error';
+        errorElement.textContent = 'Error: Datos de fracciones inválidos';
+        fractionGame.appendChild(errorElement);
+        return;
+    }
+
     fractions.forEach((frac, index) => {
         if (!frac || typeof frac !== 'object') {
-            console.warn(`Fracción en posición ${index} no es válida:`, frac);
+            console.warn(`Fracción en posición ${index} no es válida`, frac);
             return;
         }
 
-        // Extracción segura con valores por defecto
-        const card1 = frac.card1 || {};
-        const card2 = frac.card2 || {};
-
-        // Valores por defecto para propiedades críticas
-        const card1Value = card1.value ?? '?';
-        const card2Value = card2.value ?? '?';
-        const card1Image = card1.image || DEFAULT_CARD_IMAGE;
-        const card2Image = card2.image || DEFAULT_CARD_IMAGE;
-
-        // Crea elementos DOM de forma segura
         const cardDiv = document.createElement('div');
         cardDiv.className = 'fraction-card';
 
-        const img1 = new Image();
-        img1.src = card1Image;
-        img1.alt = `Valor: ${card1Value}`;
+        const img1 = document.createElement('img');
+        img1.src = frac.card1?.image || DEFAULT_CARD_IMAGE;
+        img1.alt = `Valor: ${frac.card1?.value || '?'}`;
         img1.onerror = () => img1.src = DEFAULT_CARD_IMAGE;
 
         const lineDiv = document.createElement('div');
         lineDiv.className = 'fraction-line';
 
-        const img2 = new Image();
-        img2.src = card2Image;
-        img2.alt = `Valor: ${card2Value}`;
+        const img2 = document.createElement('img');
+        img2.src = frac.card2?.image || DEFAULT_CARD_IMAGE;
+        img2.alt = `Valor: ${frac.card2?.value || '?'}`;
         img2.onerror = () => img2.src = DEFAULT_CARD_IMAGE;
 
-        // Construye la estructura
         cardDiv.appendChild(img1);
         cardDiv.appendChild(lineDiv);
         cardDiv.appendChild(img2);
         fractionGame.appendChild(cardDiv);
     });
-}
 
-    // Mensaje si no se generó contenido
     if (fractionGame.children.length === 0) {
         fractionGame.innerHTML = '<p class="info">No hay fracciones válidas para mostrar</p>';
     }
-    const fractions = [];
-    for (let i = 0; i < 4; i++) {
-        const card1 = fractionCards[i * 2];
-        const card2 = fractionCards[i * 2 + 1];
-        
-        const value1 = cardValueToNumber(card1.value);
-        const value2 = cardValueToNumber(card2.value);
-        
-        const denominator = value2 === 0 ? 1 : value2;
-        fractions.push({
-            numerator: value1,
-            denominator: denominator,
-            value: value1 / denominator,
-            card1: card1,
-            card2: card2
-        });
-    }
-    
-    const problems = [];
-    for (let i = 0; i < 2; i++) {
-        const frac1 = fractions[i * 2];
-        const frac2 = fractions[i * 2 + 1];
-        
-        problems.push({
-            question: `¿Cuál es mayor? ${frac1.numerator}/${frac1.denominator} o ${frac2.numerator}/${frac2.denominator}?`,
-            answer: frac1.value > frac2.value ? 0 : 1,
-            options: [
-                `${frac1.numerator}/${frac1.denominator}`,
-                `${frac2.numerator}/${frac2.denominator}`
-            ],
-            images: [frac1.card1.image, frac1.card2.image, frac2.card1.image, frac2.card2.image]
-        });
-    }
-    
-    const cardDisplay = document.createElement('div');
-    cardDisplay.className = 'fraction-cards';
-    
-    fractions.forEach(frac => {
-        cardDisplay.innerHTML += `
-        <div class="fraction-card">
-            <img src="${frac.card1.image}" alt="${frac.card1.value}">
-            <div class="fraction-line"></div>
-            <img src="${frac.card2.image}" alt="${frac.card2.value}">
-        </div>
-        `;
-    });
-    
-    fractionGame.appendChild(cardDisplay);
-    
-    const startBtn = document.createElement('button');
-    startBtn.className = 'btn primary';
-    startBtn.textContent = 'Practicar Fracciones';
-    startBtn.addEventListener('click', () => startLearningGame(problems, 'Comparación de Fracciones'));
-    fractionGame.appendChild(startBtn);
+}
 
 function initPercentageGame() {
     percentageProblems = [
         {
             question: "¿Cuánto es el 10% de 50?",
             answer: 5,
-            options: generateMathOptions(5, 4)
+            options: [3, 5, 7, 10]
         },
-        // ... (otros problemas de porcentajes)
+        {
+            question: "¿Cuánto es el 25% de 80?",
+            answer: 20,
+            options: [15, 20, 25, 30]
+        },
+        {
+            question: "¿Cuánto es el 50% de 120?",
+            answer: 60,
+            options: [50, 60, 70, 80]
+        }
     ];
     
     const percentageGame = document.getElementById('percentage-game');
@@ -875,9 +825,18 @@ function initAlgebraGame() {
         {
             question: "Si x + 5 = 10, ¿cuánto vale x?",
             answer: 5,
-            options: generateMathOptions(5, 4)
+            options: [3, 5, 7, 10]
         },
-        // ... (otros problemas de álgebra)
+        {
+            question: "Si 2x = 16, ¿cuánto vale x?",
+            answer: 8,
+            options: [6, 8, 10, 12]
+        },
+        {
+            question: "Si x - 3 = 7, ¿cuánto vale x?",
+            answer: 10,
+            options: [7, 10, 12, 15]
+        }
     ];
     
     const algebraGame = document.getElementById('algebra-game');
@@ -901,22 +860,15 @@ function startTablePractice(table) {
         problems.push({
             question: `${table} × ${i}`,
             answer: answer,
-            options: generateMathOptions(answer, 4) // ← Esto es obligatorio
+            options: [answer-2, answer-1, answer, answer+1]
         });
     }
     startLearningGame(problems, `Tabla del ${table}`);
 }
 
 function startLearningGame(problems, title) {
-    // Validación inicial (añadir al inicio)
     if (!problems || problems.length === 0) {
         showResultModal('Error', 'No se recibieron problemas', 'error');
-        return;
-    }
-    const validProblems = problems.filter(p => p && p.question && p.options && Array.isArray(p.options));
-
-    if (validProblems.length === 0) {
-        showResultModal('Error', 'Ningún problema válido encontrado', 'error');
         return;
     }
     
@@ -943,38 +895,26 @@ function startLearningGame(problems, title) {
     let learningStreak = 0;
     
     function showNextProblem() {
-        if (!currentProblem || !currentProblem.options) {
-            console.error("Problema no definido o sin opciones:", currentProblem);
-            currentProblem = {
-                question: "2 × 2",
-                answer: 4,
-                options: [3, 4, 5, 6] // Ejemplo de respuestas
-            };
+        if (currentProblemIndex >= problems.length) {
+            showResultModal('¡Completado!', `Has completado todos los problemas. Puntuación final: ${learningScore}`, 'success');
             return;
         }
         
         const problem = problems[currentProblemIndex];
         const problemDisplay = document.getElementById('current-learning-problem');
         
-        
         if (problemDisplay) {
             problemDisplay.innerHTML = `<p>${problem.question}</p>`;
-            
-            if (problem.images) {
-                problem.images.forEach(img => {
-                    problemDisplay.innerHTML += `<img src="${img}" class="learning-image">`;
-                });
-            }
         }
         
         const optionsDisplay = document.getElementById('learning-options');
         if (optionsDisplay) {
             optionsDisplay.innerHTML = '';
-            currentProblem.options.forEach((option, index) => {
+            problem.options.forEach((option, index) => {
                 const button = document.createElement('button');
                 button.className = 'learning-option';
                 button.textContent = option;
-                button.addEventListener('click', () => checkLearningAnswer(index));
+                button.addEventListener('click', () => checkLearningAnswer(index, problem.answer));
                 optionsDisplay.appendChild(button);
             });
         }
@@ -1207,6 +1147,8 @@ function showResultModal(title, message, type, buttons = [{ text: 'OK', action: 
     const modalContent = document.getElementById('modal-content');
     const modalButton = document.getElementById('modal-button');
     
+    if (!modal || !modalTitle || !modalContent || !modalButton) return;
+    
     modalTitle.textContent = title;
     modalContent.innerHTML = `<p>${message}</p>`;
     modal.className = `modal ${type}`;
@@ -1222,7 +1164,7 @@ function showResultModal(title, message, type, buttons = [{ text: 'OK', action: 
     
     modal.style.display = 'flex';
 }
-// Colócalo en tus funciones auxiliares
+
 function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -1246,33 +1188,6 @@ function getAuthErrorMessage(errorCode) {
 function calculateLevel(points) {
     return Math.floor(points / 1000) + 1;
 }
-// Añade esta función junto con las otras funciones auxiliares
-function generateMathOptions(correctAnswer, numOptions) {
-    let options = [correctAnswer];
-    
-    // Generar opciones incorrectas que sean cercanas al valor correcto
-    while (options.length < numOptions) {
-        // Variación aleatoria entre 1 y 10, o entre 1 y 5 para multiplicación/división
-        let variation = Math.floor(Math.random() * 10) + 1;
-        if (currentMathProblem?.operation === 'multiplicacion' || currentMathProblem?.operation === 'division') {
-            variation = Math.floor(Math.random() * 5) + 1;
-        }
-        
-        // Alternar entre sumar y restar para crear opciones diversas
-        const newOption = options.length % 2 === 0 ? 
-            correctAnswer + variation : 
-            correctAnswer - variation;
-        
-        // Para dificultad fácil, evitar números negativos
-        if (currentDifficulty === 'facil' && newOption < 0) continue;
-        
-        // Asegurarse de que no se repitan opciones
-        if (!options.includes(newOption)) {
-            options.push(newOption);
-        }
-        
-        }
-    }
 
 // ======================
 // GUARDADO DE PROGRESO
@@ -1367,23 +1282,23 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0
 // ======================
 
 function setupBottomNavListeners() {
-    document.querySelector('[data-tab="juego"]').addEventListener('click', () => {
+    document.querySelector('[data-tab="juego"]')?.addEventListener('click', () => {
         switchTab('juego');
         switchGameMode('math');
     });
     
-    document.querySelector('[data-tab="aprendizaje"]').addEventListener('click', () => {
+    document.querySelector('[data-tab="aprendizaje"]')?.addEventListener('click', () => {
         switchTab('aprendizaje');
         initLearningGames();
     });
     
-    document.querySelector('[data-tab="memoria"]').addEventListener('click', () => {
+    document.querySelector('[data-tab="memoria"]')?.addEventListener('click', () => {
         switchTab('juego');
         switchGameMode('memory');
         startMemoryGame();
     });
     
-    document.querySelector('[data-tab="perfil"]').addEventListener('click', () => {
+    document.querySelector('[data-tab="perfil"]')?.addEventListener('click', () => {
         switchTab('perfil');
         loadProfile();
     });
