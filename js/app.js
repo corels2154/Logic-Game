@@ -1152,9 +1152,6 @@ function generateMathOptions(correctAnswer, numOptions) {
         
         }
     }
-    
-    // Mezclar las opciones para que la correcta no siempre esté en la misma posición
-    return shuffleArray(options);
 
 // La función shuffleArray ya debería existir en tu código, pero por si acaso:
 function shuffleArray(array) {
