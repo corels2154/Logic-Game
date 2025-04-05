@@ -704,7 +704,7 @@ function renderMultiplicationTables() {
     });
 }
 
-// ✅ CORRECTO (conserva SOLO esta versión)
+//CORRECTO (conserva SOLO esta versión)
 function initFractionGame() {
     cardsApi.drawCards(8).then(data => {
         if (!data.cards || data.cards.length < 8) {
@@ -729,67 +729,68 @@ function initFractionGame() {
 // Versión corregida del código problemático
 function renderFractionGame(fractions) {
     const fractionGame = document.getElementById('fraction-game');
-    if (!fractionGame) {
-        console.error('Elemento fraction-game no encontrado');
-        return;
+    if (!fractionGame) return;
+
+    // Limpia el contenedor de forma segura
+    while (fractionGame.firstChild) {
+        fractionGame.removeChild(fractionGame.firstChild);
     }
 
-    fractionGame.innerHTML = '';
-
-    // Validación adicional del array de fracciones
+    // Verifica que fractions sea un array válido
     if (!Array.isArray(fractions)) {
-        fractionGame.innerHTML = '<p class="error">Formato de fracciones inválido</p>';
+        const errorMsg = document.createElement('p');
+        errorMsg.className = 'error-message';
+        errorMsg.textContent = 'Error: Datos de fracciones inválidos';
+        fractionGame.appendChild(errorMsg);
         return;
     }
 
+    // Procesa cada fracción con validación
     fractions.forEach((frac, index) => {
-        // Validación exhaustiva de la estructura
         if (!frac || typeof frac !== 'object') {
-            console.error(`Fracción inválida en posición ${index}:`, frac);
+            console.warn(`Fracción en posición ${index} no es válida:`, frac);
             return;
         }
 
-        // Destructuring con valores por defecto
-        const {
-            card1 = { value: '?', image: DEFAULT_CARD_IMAGE },
-            card2 = { value: '?', image: DEFAULT_CARD_IMAGE }
-        } = frac;
+        // Extracción segura con valores por defecto
+        const card1 = frac.card1 || {};
+        const card2 = frac.card2 || {};
 
-        // Validación tipo-safe de las cartas
-        const isValidCard = (card) => 
-            card && 
-            'value' in card && 
-            'image' in card &&
-            typeof card.value !== 'undefined' &&
-            typeof card.image !== 'undefined';
+        // Valores por defecto para propiedades críticas
+        const card1Value = card1.value ?? '?';
+        const card2Value = card2.value ?? '?';
+        const card1Image = card1.image || DEFAULT_CARD_IMAGE;
+        const card2Image = card2.image || DEFAULT_CARD_IMAGE;
 
-        if (!isValidCard(card1) || !isValidCard(card2)) {
-            console.error(`Estructura de carta inválida en posición ${index}:`, {card1, card2});
-            return;
-        }
+        // Crea elementos DOM de forma segura
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'fraction-card';
 
-        // Generación segura del HTML
-        const cardHtml = `
-        <div class="fraction-card">
-            <img src="${card1.image}" 
-                 alt="Carta: ${card1.value}" 
-                 onerror="this.src='${DEFAULT_CARD_IMAGE}'"
-                 loading="lazy">
-            <div class="fraction-line"></div>
-            <img src="${card2.image}" 
-                 alt="Carta: ${card2.value}"
-                 onerror="this.src='${DEFAULT_CARD_IMAGE}'"
-                 loading="lazy">
-        </div>`;
+        const img1 = new Image();
+        img1.src = card1Image;
+        img1.alt = `Valor: ${card1Value}`;
+        img1.onerror = () => img1.src = DEFAULT_CARD_IMAGE;
 
-        fractionGame.insertAdjacentHTML('beforeend', cardHtml);
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'fraction-line';
+
+        const img2 = new Image();
+        img2.src = card2Image;
+        img2.alt = `Valor: ${card2Value}`;
+        img2.onerror = () => img2.src = DEFAULT_CARD_IMAGE;
+
+        // Construye la estructura
+        cardDiv.appendChild(img1);
+        cardDiv.appendChild(lineDiv);
+        cardDiv.appendChild(img2);
+        fractionGame.appendChild(cardDiv);
     });
+}
 
     // Mensaje si no se generó contenido
     if (fractionGame.children.length === 0) {
         fractionGame.innerHTML = '<p class="info">No hay fracciones válidas para mostrar</p>';
     }
-}
     const fractions = [];
     for (let i = 0; i < 4; i++) {
         const card1 = fractionCards[i * 2];
