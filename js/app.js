@@ -59,6 +59,17 @@ let memoryMoves = 0;
 let memoryGameTime = 0;
 let memoryTimer = null;
 
+// Función requerida para mostrar símbolos matemáticos
+function getOperationSymbol(operation) {
+    const symbols = {
+        'suma': '+',
+        'resta': '-',
+        'multiplicacion': '×', 
+        'division': '÷'
+    };
+    return symbols[operation] || '?';
+}
+
 // Variables para el juego de lógica
 let currentLogicProblem = null;
 const logicProblems = [
@@ -1138,20 +1149,12 @@ function generateMathOptions(correctAnswer, numOptions) {
         if (!options.includes(newOption)) {
             options.push(newOption);
         }
-        function getOperationSymbol(operation) {
-            const symbols = {
-                'suma': '+',
-                'resta': '-',
-                'multiplicacion': '×',
-                'division': '÷'
-            };
-            return symbols[operation] || '?'; // Devuelve '?' si la operación no está definida
+        
         }
     }
     
     // Mezclar las opciones para que la correcta no siempre esté en la misma posición
     return shuffleArray(options);
-}
 
 // La función shuffleArray ya debería existir en tu código, pero por si acaso:
 function shuffleArray(array) {
