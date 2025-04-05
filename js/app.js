@@ -807,7 +807,6 @@ function renderFractionGame(fractions) {
     startBtn.textContent = 'Practicar Fracciones';
     startBtn.addEventListener('click', () => startLearningGame(problems, 'Comparación de Fracciones'));
     fractionGame.appendChild(startBtn);
-}
 
 function initPercentageGame() {
     percentageProblems = [
