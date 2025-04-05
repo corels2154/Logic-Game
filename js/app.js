@@ -1,5 +1,5 @@
 
-// Importaciones de Firebase
+/// Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { 
   getAuth, 
@@ -21,8 +21,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // URLs de recursos por defecto
-const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
-const DEFAULT_ICON = 'https://cdn-icons-png.flaticon.com/512/3663/3663398.png';
+const DEFAULT_AVATAR = 'assets/images/default-avatar.png';
+const DEFAULT_ICON = 'assets/images/default-icon.png';
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -33,6 +33,7 @@ const firebaseConfig = {
     messagingSenderId: "49694670172",
     appId: "1:49694670172:web:c2e1c8069124c4a05f9599"
   };
+
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
@@ -80,8 +81,55 @@ const logicProblems = [
     question: "Si A = 1, B = 2, C = 3, ..., Z = 26, ¿cuál es el valor de A + B + C?",
     options: ["5", "6", "7", "8"],
     answer: 1
+  },
+  {
+    question: "Si hoy es lunes, ¿qué día será dentro de 3 días?",
+    options: ["Martes", "Miércoles", "Jueves", "Viernes"],
+    answer: 2
+  },
+  {
+    question: "¿Cuál es el número que continúa la serie: 2, 4, 8, 16, ___?",
+    options: ["18", "20", "24", "32"],
+    answer: 3
+  },
+  {
+    question: "Si todas las rosas son flores y algunas flores se marchitan rápidamente, entonces:",
+    options: [
+      "Todas las rosas se marchitan rápidamente",
+      "Algunas rosas se marchitan rápidamente",
+      "Ninguna rosa se marchita rápidamente",
+      "No se puede determinar"
+    ],
+    answer: 1
+  },
+  {
+    question: "¿Cuál es la figura que no pertenece al grupo? (Círculo, Cuadrado, Triángulo, Esfera)",
+    options: ["Círculo", "Cuadrado", "Triángulo", "Esfera"],
+    answer: 3
+  },
+  {
+    question: "Si 3 manzanas cuestan $6, ¿cuánto costarán 5 manzanas?",
+    options: ["$8", "$10", "$12", "$15"],
+    answer: 1
+  },
+  {
+    question: "¿Cuál es la palabra que no pertenece al grupo? (Perro, Gato, Pájaro, Árbol)",
+    options: ["Perro", "Gato", "Pájaro", "Árbol"],
+    answer: 3
+  },
+  {
+    question: "Si 5 máquinas hacen 5 artículos en 5 minutos, ¿cuánto tardarán 100 máquinas en hacer 100 artículos?",
+    options: ["5 minutos", "50 minutos", "100 minutos", "500 minutos"],
+    answer: 0,
   }
 ];
+
+// Variables para el juego de aprendizaje
+let currentLearnTopic = 'multiplicacion';
+const multiplicationTables = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let fractionCards = [];
+let percentageProblems = [];
+let algebraProblems = [];
 
 // Temporizadores
 let gameTimer = null;
@@ -136,72 +184,112 @@ const cardsApi = {
 // ======================
 
 async function generateMathProblem() {
-  try {
-    clearInterval(gameTimer);
-    timeLeft = 60;
-    updateTimerUI();
-    
-    const data = await cardsApi.drawCards(2);
-    const [card1, card2] = data.cards;
-    
-    const value1 = cardValueToNumber(card1.value);
-    const value2 = cardValueToNumber(card2.value);
-    const operation = mathOperations[Math.floor(Math.random() * mathOperations.length)];
-    
-    currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
-    displayMathProblem();
-    startGameTimer();
-  } catch (error) {
-    console.error("Error generando problema matemático:", error);
-    showResultModal('Error', 'No se pudo crear el problema. Intenta de nuevo.', 'error');
-  }
-}
-
-function createMathProblem(value1, value2, operation, card1, card2) {
-  let problemText = '';
-  let answer = 0;
+    try {
+      clearInterval(gameTimer);
+      timeLeft = 60;
+      updateTimerUI();
   
-  switch(operation) {
-    case 'suma':
-      problemText = `${value1} + ${value2}`;
-      answer = value1 + value2;
-      break;
-    case 'resta':
-      problemText = `${value1} - ${value2}`;
-      answer = value1 - value2;
-      break;
-    case 'multiplicacion':
-      problemText = `${value1} × ${value2}`;
-      answer = value1 * value2;
-      break;
-    case 'division':
-      if (value2 === 0) value2 = 1; // Evitar división por cero
-      answer = Math.round((value1 / value2) * 10) / 10;
-      problemText = `${value1} ÷ ${value2}`;
-      break;
-  }
+      // 1. Verificar y preparar el mazo
+      if (!cardsApi.currentDeckId || cardsApi.remainingCards < 2) {
+        await cardsApi.initNewDeck();
+      }
   
-  return {
-    card1,
-    card2,
-    problem: problemText,
-    answer,
-    operation
-  };
-}
-
-function cardValueToNumber(value) {
-  const valuesMap = {
-    'ACE': 1,
-    'JACK': 11,
-    'QUEEN': 12,
-    'KING': 13
-  };
-  return valuesMap[value] || parseInt(value) || 0;
-}
-
-function displayMathProblem() {
-  if (!currentMathProblem) return;
+      // 2. Obtener cartas con validación robusta
+      const data = await cardsApi.drawCards(2);
+      
+      // Validación exhaustiva
+      if (!data?.success || !Array.isArray(data.cards)) { // Corrección: se cerró correctamente el paréntesis
+        throw new Error("Respuesta inválida de la API de cartas");
+      }
+      
+      if (data.cards.length < 2) {
+        throw new Error("No se obtuvieron suficientes cartas");
+      }
+  
+      // 3. Acceso seguro a las cartas (sin destructuración)
+      const card1 = data.cards[0];
+      const card2 = data.cards[1];
+  
+      // Validación adicional de valores
+      if (!card1 || !card2) {
+        throw new Error("Cartas inválidas recibidas");
+      }
+  
+      const value1 = cardValueToNumber(card1.value);
+      const value2 = cardValueToNumber(card2.value);
+      
+      // 4. Selección de operación segura
+      const operation = mathOperations[Math.floor(Math.random() * mathOperations.length)] || 'suma';
+      
+      currentMathProblem = createMathProblem(value1, value2, operation, card1, card2);
+      displayMathProblem();
+      startGameTimer();
+  
+    } catch (error) {
+      console.error("Error en generateMathProblem:", error);
+      
+      // Mostrar error específico al usuario
+      const errorMessage = error.message.includes("API") 
+        ? "Problema con el servidor de cartas" 
+        : "Error al crear el problema matemático";
+      
+      showResultModal('Error', `${errorMessage}. Intentando nuevamente...`, 'error');
+      
+      // Reintento con delay
+      setTimeout(() => {
+        cardsApi.initNewDeck().finally(generateMathProblem);
+      }, 2000);
+    }
+  }
+    
+    // Mostrar cartas con manejo de errores
+    if (cardDisplay) {
+      cardDisplay.innerHTML = `
+        <div class="math-card">
+          <img src="${card1.image}" alt="${card1.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+          <span class="math-symbol">${getOperationSymbol(operation)}</span>
+          <img src="${card2.image}" alt="${card2.value}" onerror="this.src='https://deckofcardsapi.com/static/img/back.png'">
+          <span class="math-symbol">=</span>
+          <span class="question-mark">?</span>
+        </div>
+      `;
+    }
+    
+    // Mostrar problema
+    problemDisplay = document.getElementById('problem-display');
+    if (problemDisplay) {
+      problemDisplay.innerHTML = `<h3>${problem} = ?</h3>`;
+    }
+    
+    // Mostrar opciones de respuesta con estilos claros
+    const answerOptions = document.getElementById('answer-options');
+    if (answerOptions) {
+      answerOptions.innerHTML = '';
+      const answers = generateAnswerOptions(answer, 4);
+      
+      answers.forEach((answer, index) => {
+        const button = document.createElement('button');
+        button.className = 'answer-btn';
+        button.textContent = answer;
+        button.dataset.answer = answer;
+        button.addEventListener('click', checkMathAnswer);
+        
+        // Estilo para cada botón de respuesta
+        button.style.cssText = `
+          margin: 5px;
+          padding: 10px 15px;
+          font-size: 1.2em;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          min-width: 60px;
+        `;
+        
+        answerOptions.appendChild(button);
+      });
+    }
   
   const { card1, card2, operation, problem, answer } = currentMathProblem;
   
@@ -225,8 +313,7 @@ function displayMathProblem() {
     problemDisplay.innerHTML = `<h3>${problem} = ?</h3>`;
   }
   
-  // Mostrar opciones de respuesta
-  const answerOptions = document.getElementById('answer-options');
+  // Reutilizar la variable answerOptions
   if (answerOptions) {
     answerOptions.innerHTML = '';
     const answers = generateAnswerOptions(answer, 4);
@@ -240,7 +327,6 @@ function displayMathProblem() {
       answerOptions.appendChild(button);
     });
   }
-}
 
 function checkMathAnswer(event) {
   const selectedAnswer = parseFloat(event.target.dataset.answer);
@@ -483,7 +569,17 @@ function startLogicGame() {
     return;
   }
   
-  currentLogicProblem = logicProblems[Math.floor(Math.random() * logicProblems.length)];
+  // Seleccionar un problema aleatorio que no se haya mostrado recientemente
+  let availableProblems = [...logicProblems];
+  if (currentLogicProblem) {
+    availableProblems = availableProblems.filter(p => p.question !== currentLogicProblem.question);
+  }
+  
+  if (availableProblems.length === 0) {
+    availableProblems = [...logicProblems]; // Reiniciar si ya se mostraron todos
+  }
+  
+  currentLogicProblem = availableProblems[Math.floor(Math.random() * availableProblems.length)];
   displayLogicProblem();
 }
 
@@ -508,6 +604,9 @@ function displayLogicProblem() {
       logicOptions.appendChild(optionElement);
     });
   }
+  
+  // Ocultar el botón de siguiente hasta que respondan
+  document.getElementById('next-logic-btn').style.display = 'none';
 }
 
 function checkLogicAnswer(selectedIndex) {
@@ -539,6 +638,338 @@ function checkLogicAnswer(selectedIndex) {
   }
   
   document.getElementById('next-logic-btn').style.display = 'block';
+}
+
+// ======================
+// JUEGO DE APRENDIZAJE
+// ======================
+
+function initLearningGames() {
+  // Inicializar tablas de multiplicar
+  renderMultiplicationTables();
+  
+  // Inicializar juego de fracciones
+  initFractionGame();
+  
+  // Inicializar juego de porcentajes
+  initPercentageGame();
+  
+  // Inicializar juego de álgebra
+  initAlgebraGame();
+}
+
+function renderMultiplicationTables() {
+  const tablesGrid = document.getElementById('tables-grid');
+  if (!tablesGrid) return;
+  
+  tablesGrid.innerHTML = '';
+  
+  multiplicationTables.forEach(table => {
+    const tableElement = document.createElement('div');
+    tableElement.className = 'table-card';
+    tableElement.innerHTML = `<h4>Tabla del ${table}</h4>`;
+    
+    for (let i = 1; i <= 10; i++) {
+      const row = document.createElement('div');
+      row.className = 'table-row';
+      row.textContent = `${table} × ${i} = ${table * i}`;
+      tableElement.appendChild(row);
+    }
+    
+    tableElement.addEventListener('click', () => startTablePractice(table));
+    tablesGrid.appendChild(tableElement);
+  });
+}
+
+function startTablePractice(table) {
+  currentLearnTopic = 'multiplicacion';
+  const problems = [];
+  
+  for (let i = 1; i <= 10; i++) {
+    problems.push({
+      question: `${table} × ${i}`,
+      answer: table * i,
+      options: generateMathOptions(table * i, 4)
+    });
+  }
+  
+  startLearningGame(problems, `Practica la tabla del ${table}`);
+}
+
+async function initFractionGame() {
+  try {
+    const data = await cardsApi.drawCards(8);
+    fractionCards = data.cards.slice(0, 8);
+    renderFractionGame();
+  } catch (error) {
+    console.error("Error inicializando juego de fracciones:", error);
+  }
+}
+
+function renderFractionGame() {
+  const fractionGame = document.getElementById('fraction-game');
+  if (!fractionGame) return;
+  
+  fractionGame.innerHTML = '<h4>Compara fracciones usando cartas</h4>';
+  
+  // Creamos 4 fracciones (2 pares para comparar)
+  const fractions = [];
+  for (let i = 0; i < 4; i++) {
+    const card1 = fractionCards[i * 2];
+    const card2 = fractionCards[i * 2 + 1];
+    
+    const value1 = cardValueToNumber(card1.value);
+    const value2 = cardValueToNumber(card2.value);
+    
+    // Aseguramos que el denominador no sea cero
+    const denominator = value2 === 0 ? 1 : value2;
+    fractions.push({
+      numerator: value1,
+      denominator: denominator,
+      value: value1 / denominator,
+      card1: card1,
+      card2: card2
+    });
+  }
+  
+  // Creamos preguntas de comparación
+  const problems = [];
+  for (let i = 0; i < 2; i++) {
+    const frac1 = fractions[i * 2];
+    const frac2 = fractions[i * 2 + 1];
+    
+    problems.push({
+      question: `¿Cuál es mayor? ${frac1.numerator}/${frac1.denominator} o ${frac2.numerator}/${frac2.denominator}?`,
+      answer: frac1.value > frac2.value ? 0 : 1,
+      options: [
+        `${frac1.numerator}/${frac1.denominator}`,
+        `${frac2.numerator}/${frac2.denominator}`
+      ],
+      images: [frac1.card1.image, frac1.card2.image, frac2.card1.image, frac2.card2.image]
+    });
+  }
+  
+  // Mostramos las cartas
+  const cardDisplay = document.createElement('div');
+  cardDisplay.className = 'fraction-cards';
+  
+  fractions.forEach(frac => {
+    cardDisplay.innerHTML += `
+      <div class="fraction-card">
+        <img src="${frac.card1.image}" alt="${frac.card1.value}">
+        <div class="fraction-line"></div>
+        <img src="${frac.card2.image}" alt="${frac.card2.value}">
+      </div>
+    `;
+  });
+  
+  fractionGame.appendChild(cardDisplay);
+  
+  // Botón para iniciar el juego
+  const startBtn = document.createElement('button');
+  startBtn.className = 'btn primary';
+  startBtn.textContent = 'Practicar Fracciones';
+  startBtn.addEventListener('click', () => startLearningGame(problems, 'Comparación de Fracciones'));
+  fractionGame.appendChild(startBtn);
+}
+
+function initPercentageGame() {
+  percentageProblems = [
+    {
+      question: "¿Cuánto es el 10% de 50?",
+      answer: 5,
+      options: generateMathOptions(5, 4)
+    },
+    {
+      question: "¿Cuánto es el 25% de 80?",
+      answer: 20,
+      options: generateMathOptions(20, 4)
+    },
+    {
+      question: "¿Cuánto es el 50% de 120?",
+      answer: 60,
+      options: generateMathOptions(60, 4)
+    },
+    {
+      question: "Si un artículo cuesta $200 con 20% de descuento, ¿cuál es su precio final?",
+      answer: 160,
+      options: generateMathOptions(160, 4)
+    },
+    {
+      question: "¿De qué número es 15 el 30%?",
+      answer: 50,
+      options: generateMathOptions(50, 4)
+    }
+  ];
+  
+  const percentageGame = document.getElementById('percentage-game');
+  if (percentageGame) {
+    percentageGame.innerHTML = `
+      <h4>Porcentajes con cartas</h4>
+      <p>Calcula porcentajes usando valores de cartas</p>
+      <button id="start-percentage-game" class="btn primary">Comenzar</button>
+    `;
+    
+    document.getElementById('start-percentage-game')?.addEventListener('click', () => {
+      startLearningGame(percentageProblems, 'Porcentajes');
+    });
+  }
+}
+
+function initAlgebraGame() {
+  algebraProblems = [
+    {
+      question: "Si x + 5 = 10, ¿cuánto vale x?",
+      answer: 5,
+      options: generateMathOptions(5, 4)
+    },
+    {
+      question: "Si 2x = 16, ¿cuánto vale x?",
+      answer: 8,
+      options: generateMathOptions(8, 4)
+    },
+    {
+      question: "Si x - 3 = 7, ¿cuánto vale x?",
+      answer: 10,
+      options: generateMathOptions(10, 4)
+    },
+    {
+      question: "Si x/4 = 5, ¿cuánto vale x?",
+      answer: 20,
+      options: generateMathOptions(20, 4)
+    },
+    {
+      question: "Si 3x + 2 = 14, ¿cuánto vale x?",
+      answer: 4,
+      options: generateMathOptions(4, 4)
+    }
+  ];
+  
+  const algebraGame = document.getElementById('algebra-game');
+  if (algebraGame) {
+    algebraGame.innerHTML = `
+      <h4>Álgebra básica</h4>
+      <p>Resuelve ecuaciones simples</p>
+      <button id="start-algebra-game" class="btn primary">Comenzar</button>
+    `;
+    
+    document.getElementById('start-algebra-game')?.addEventListener('click', () => {
+      startLearningGame(algebraProblems, 'Álgebra Básica');
+    });
+  }
+}
+
+function startLearningGame(problems, title) {
+  if (!problems || problems.length === 0) {
+    showResultModal('Error', 'No hay problemas disponibles para este tema', 'error');
+    return;
+  }
+  
+  // Configurar la interfaz para el juego de aprendizaje
+  const learningContainer = document.createElement('div');
+  learningContainer.className = 'learning-game-container';
+  learningContainer.innerHTML = `
+    <h3>${title}</h3>
+    <div class="learning-problem" id="current-learning-problem"></div>
+    <div class="learning-options" id="learning-options"></div>
+    <div class="learning-stats">
+      <span id="learning-score">0</span> puntos | 
+      <span id="learning-streak">0</span> racha
+    </div>
+  `;
+  
+  // Reemplazar el contenido de la sección de aprendizaje
+  const learnContent = document.querySelector(`#${currentLearnTopic}-content`);
+  if (learnContent) {
+    learnContent.innerHTML = '';
+    learnContent.appendChild(learningContainer);
+  }
+  
+  let currentProblemIndex = 0;
+  let learningScore = 0;
+  let learningStreak = 0;
+  
+  function showNextProblem() {
+    if (currentProblemIndex >= problems.length) {
+      // Juego terminado
+      showResultModal(
+        '¡Completado!', 
+        `Obtuviste ${learningScore} puntos en ${problems.length} problemas.`, 
+        'success'
+      );
+      currentScore += learningScore;
+      updateScoreUI();
+      initLearningGames(); // Volver a la vista inicial
+      return;
+    }
+    
+    const problem = problems[currentProblemIndex];
+    const problemDisplay = document.getElementById('current-learning-problem');
+    const optionsDisplay = document.getElementById('learning-options');
+    
+    if (problemDisplay) {
+      problemDisplay.innerHTML = `<p>${problem.question}</p>`;
+      
+      // Mostrar imágenes si existen
+      if (problem.images) {
+        problem.images.forEach(img => {
+          problemDisplay.innerHTML += `<img src="${img}" class="learning-image">`;
+        });
+      }
+    }
+    
+    if (optionsDisplay) {
+      optionsDisplay.innerHTML = '';
+      problem.options.forEach((option, index) => {
+        const optionBtn = document.createElement('button');
+        optionBtn.className = 'learning-option';
+        optionBtn.textContent = option;
+        optionBtn.addEventListener('click', () => checkLearningAnswer(index, problem.answer));
+        optionsDisplay.appendChild(optionBtn);
+      });
+    }
+  }
+  
+  function checkLearningAnswer(selectedIndex, correctAnswer) {
+    const isCorrect = selectedIndex === correctAnswer;
+    const optionButtons = document.querySelectorAll('.learning-option');
+    
+    optionButtons.forEach((btn, idx) => {
+      if (idx === correctAnswer) {
+        btn.classList.add('correct');
+      }
+      if (idx === selectedIndex && !isCorrect) {
+        btn.classList.add('incorrect');
+      }
+      btn.disabled = true;
+    });
+    
+    if (isCorrect) {
+      learningStreak++;
+      const pointsEarned = 10 * learningStreak;
+      learningScore += pointsEarned;
+      
+      // Actualizar UI
+      document.getElementById('learning-score').textContent = learningScore;
+      document.getElementById('learning-streak').textContent = learningStreak;
+      
+      setTimeout(() => {
+        currentProblemIndex++;
+        showNextProblem();
+      }, 1000);
+    } else {
+      learningStreak = 0;
+      document.getElementById('learning-streak').textContent = learningStreak;
+      
+      setTimeout(() => {
+        currentProblemIndex++;
+        showNextProblem();
+      }, 1500);
+    }
+  }
+  
+  // Comenzar el juego
+  showNextProblem();
 }
 
 // ======================
@@ -786,12 +1217,12 @@ function getOperationSymbol(operation) {
   return symbols[operation] || '?';
 }
 
-function generateAnswerOptions(correctAnswer, numOptions) {
+function generateMathOptions(correctAnswer, numOptions) {
   let answers = [correctAnswer];
   
   while (answers.length < numOptions) {
     let variation = Math.floor(Math.random() * 10) + 1;
-    if (currentMathProblem.operation === 'multiplicacion' || currentMathProblem.operation === 'division') {
+    if (currentMathProblem?.operation === 'multiplicacion' || currentMathProblem?.operation === 'division') {
       variation = Math.floor(Math.random() * 5) + 1;
     }
     
@@ -902,6 +1333,33 @@ async function updateUserStats(mathPoints = 0, memoryPoints = 0, logicPoints = 0
 // MANEJO DE EVENTOS
 // ======================
 
+function setupBottomNavListeners() {
+  // Botón de Juego
+  document.querySelector('[data-tab="juego"]').addEventListener('click', () => {
+    switchTab('juego');
+    switchGameMode('math');
+  });
+  
+  // Botón de Aprendizaje
+  document.querySelector('[data-tab="aprendizaje"]').addEventListener('click', () => {
+    switchTab('aprendizaje');
+    initLearningGames();
+  });
+  
+  // Botón de Memoria
+  document.querySelector('[data-tab="memoria"]').addEventListener('click', () => {
+    switchTab('juego');
+    switchGameMode('memory');
+    startMemoryGame();
+  });
+  
+  // Botón de Perfil
+  document.querySelector('[data-tab="perfil"]').addEventListener('click', () => {
+    switchTab('perfil');
+    loadProfile();
+  });
+}
+
 function setupEventListeners() {
   // Tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -953,6 +1411,22 @@ function setupEventListeners() {
   
   // Perfil
   document.getElementById('logout-button')?.addEventListener('click', handleLogout);
+  
+  // Aprendizaje
+  document.querySelectorAll('.learn-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabId = tab.dataset.tab;
+      document.querySelectorAll('.learn-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.learn-content').forEach(c => c.classList.remove('active'));
+      
+      tab.classList.add('active');
+      document.getElementById(`${tabId}-content`).classList.add('active');
+      currentLearnTopic = tabId;
+    });
+  });
+  
+  // Configurar navegación inferior
+  setupBottomNavListeners();
   
   // Salir del juego
   document.getElementById('exit-game-btn')?.addEventListener('click', () => {
@@ -1045,6 +1519,9 @@ function initApp() {
   
   // Cargar ajustes
   loadSettings();
+  
+  // Inicializar juegos de aprendizaje
+  initLearningGames();
   
   // Verificar autenticación
   onAuthStateChanged(auth, (user) => {
