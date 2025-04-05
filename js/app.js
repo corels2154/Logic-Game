@@ -1138,6 +1138,15 @@ function generateMathOptions(correctAnswer, numOptions) {
         if (!options.includes(newOption)) {
             options.push(newOption);
         }
+        function getOperationSymbol(operation) {
+            const symbols = {
+                'suma': '+',
+                'resta': '-',
+                'multiplicacion': '×',
+                'division': '÷'
+            };
+            return symbols[operation] || '?'; // Devuelve '?' si la operación no está definida
+        }
     }
     
     // Mezclar las opciones para que la correcta no siempre esté en la misma posición
