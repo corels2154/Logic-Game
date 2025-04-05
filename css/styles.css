@@ -1012,3 +1012,17 @@
     font-size: 1.5em;
     margin-bottom: 5px;
   }
+  .fraction-card { 
+    display: flex;
+    align-items: center;
+    margin: 10px;
+}
+.fraction-line {
+    border-top: 1px solid #000;
+    width: 20px;
+    margin: 0 5px;
+}
+.error, .info {
+    color: red;
+    padding: 10px;
+}

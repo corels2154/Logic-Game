@@ -726,32 +726,69 @@ function initFractionGame() {
     });
 }
 
+// Versión corregida del código problemático
 function renderFractionGame(fractions) {
     const fractionGame = document.getElementById('fraction-game');
-    if (!fractionGame) return;
+    if (!fractionGame) {
+        console.error('Elemento fraction-game no encontrado');
+        return;
+    }
 
     fractionGame.innerHTML = '';
-    
-    fractions.forEach(frac => {
-        // Verifica que las cartas existan
-        if (!frac.card1 || !frac.card2) {
-            console.error('Carta no definida', frac);
-            return; // Salta esta fracción
+
+    // Validación adicional del array de fracciones
+    if (!Array.isArray(fractions)) {
+        fractionGame.innerHTML = '<p class="error">Formato de fracciones inválido</p>';
+        return;
+    }
+
+    fractions.forEach((frac, index) => {
+        // Validación exhaustiva de la estructura
+        if (!frac || typeof frac !== 'object') {
+            console.error(`Fracción inválida en posición ${index}:`, frac);
+            return;
         }
 
-        // Crea el HTML de la carta con validación
+        // Destructuring con valores por defecto
+        const {
+            card1 = { value: '?', image: DEFAULT_CARD_IMAGE },
+            card2 = { value: '?', image: DEFAULT_CARD_IMAGE }
+        } = frac;
+
+        // Validación tipo-safe de las cartas
+        const isValidCard = (card) => 
+            card && 
+            'value' in card && 
+            'image' in card &&
+            typeof card.value !== 'undefined' &&
+            typeof card.image !== 'undefined';
+
+        if (!isValidCard(card1) || !isValidCard(card2)) {
+            console.error(`Estructura de carta inválida en posición ${index}:`, {card1, card2});
+            return;
+        }
+
+        // Generación segura del HTML
         const cardHtml = `
         <div class="fraction-card">
-            <img src="${frac.card1?.image || DEFAULT_CARD_IMAGE}" 
-                 alt="${frac.card1?.value || '?'}">
+            <img src="${card1.image}" 
+                 alt="Carta: ${card1.value}" 
+                 onerror="this.src='${DEFAULT_CARD_IMAGE}'"
+                 loading="lazy">
             <div class="fraction-line"></div>
-            <img src="${frac.card2?.image || DEFAULT_CARD_IMAGE}" 
-                 alt="${frac.card2?.value || '?'}">
-        </div>
-        `;
-        
+            <img src="${card2.image}" 
+                 alt="Carta: ${card2.value}"
+                 onerror="this.src='${DEFAULT_CARD_IMAGE}'"
+                 loading="lazy">
+        </div>`;
+
         fractionGame.insertAdjacentHTML('beforeend', cardHtml);
     });
+
+    // Mensaje si no se generó contenido
+    if (fractionGame.children.length === 0) {
+        fractionGame.innerHTML = '<p class="info">No hay fracciones válidas para mostrar</p>';
+    }
 }
     const fractions = [];
     for (let i = 0; i < 4; i++) {
