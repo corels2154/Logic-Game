@@ -1193,16 +1193,6 @@ function generateMathOptions(correctAnswer, numOptions) {
         }
     }
 
-// La función shuffleArray ya debería existir en tu código, pero por si acaso:
-function shuffleArray(array) {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-}
-
 // ======================
 // GUARDADO DE PROGRESO
 // ======================
