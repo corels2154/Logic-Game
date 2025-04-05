@@ -23,6 +23,7 @@ import {
 // URLs de recursos por defecto
 const DEFAULT_AVATAR = 'assets/images/default-avatar.png';
 const DEFAULT_ICON = 'assets/images/default-icon.png';
+const DEFAULT_CARD_IMAGE = 'https://deckofcardsapi.com/static/img/back.png';
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -703,22 +704,55 @@ function renderMultiplicationTables() {
     });
 }
 
-async function initFractionGame() {
-    try {
-        const data = await cardsApi.drawCards(8);
-        fractionCards = data.cards.slice(0, 8);
-        renderFractionGame();
-    } catch (error) {
-        console.error("Error inicializando juego de fracciones:", error);
-    }
+// ✅ CORRECTO (conserva SOLO esta versión)
+function initFractionGame() {
+    cardsApi.drawCards(8).then(data => {
+        if (!data.cards || data.cards.length < 8) {
+            throw new Error('No se recibieron suficientes cartas');
+        }
+
+        const validCards = data.cards.filter(card => card && card.value);
+        if (validCards.length < 8) {
+            throw new Error('Cartas inválidas recibidas');
+        }
+
+        const fractions = [];
+        // ... resto del código ...
+    }).catch(error => {
+        console.error("Error:", error);
+        document.getElementById('fraction-game').innerHTML = `
+            <p class="error">Error al cargar el juego: ${error.message}</p>
+        `;
+    });
 }
 
-function renderFractionGame() {
+function renderFractionGame(fractions) {
     const fractionGame = document.getElementById('fraction-game');
     if (!fractionGame) return;
+
+    fractionGame.innerHTML = '';
     
-    fractionGame.innerHTML = '<h4>Compara fracciones usando cartas</h4>';
-    
+    fractions.forEach(frac => {
+        // Verifica que las cartas existan
+        if (!frac.card1 || !frac.card2) {
+            console.error('Carta no definida', frac);
+            return; // Salta esta fracción
+        }
+
+        // Crea el HTML de la carta con validación
+        const cardHtml = `
+        <div class="fraction-card">
+            <img src="${frac.card1?.image || DEFAULT_CARD_IMAGE}" 
+                 alt="${frac.card1?.value || '?'}">
+            <div class="fraction-line"></div>
+            <img src="${frac.card2?.image || DEFAULT_CARD_IMAGE}" 
+                 alt="${frac.card2?.value || '?'}">
+        </div>
+        `;
+        
+        fractionGame.insertAdjacentHTML('beforeend', cardHtml);
+    });
+}
     const fractions = [];
     for (let i = 0; i < 4; i++) {
         const card1 = fractionCards[i * 2];
@@ -834,17 +868,6 @@ function startTablePractice(table) {
         });
     }
     startLearningGame(problems, `Tabla del ${table}`);
-}
-function initFractionGame() {
-    // ... código existente ...
-    problems.push({
-        question: `¿Cuál es mayor? ${frac1.numerator}/${frac1.denominator} o ${frac2.numerator}/${frac2.denominator}?`,
-        answer: frac1.value > frac2.value ? 0 : 1,
-        options: [ // ← Asegúrate de incluir esto
-            `${frac1.numerator}/${frac1.denominator}`,
-            `${frac2.numerator}/${frac2.denominator}`
-        ]
-    });
 }
 
 function startLearningGame(problems, title) {
