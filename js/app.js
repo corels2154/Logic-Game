@@ -280,6 +280,46 @@ async function generateMathProblem() {
         }, 2000);
     }
 }
+// Agrega esto en la sección de funciones auxiliares (antes de displayMathProblem)
+function generateAnswerOptions(correctAnswer, numOptions) {
+    let options = [correctAnswer];
+    
+    while (options.length < numOptions) {
+        // Variación aleatoria entre 1 y 10
+        let variation = Math.floor(Math.random() * 10) + 1;
+        
+        // Para multiplicación/división, usar variación más pequeña
+        if (currentMathProblem?.operation === 'multiplicacion' || 
+            currentMathProblem?.operation === 'division') {
+            variation = Math.floor(Math.random() * 5) + 1;
+        }
+        
+        // Alternar entre sumar y restar la variación
+        const newOption = options.length % 2 === 0 
+            ? correctAnswer + variation 
+            : correctAnswer - variation;
+        
+        // Evitar números negativos en dificultad fácil
+        if (currentDifficulty === 'facil' && newOption < 0) continue;
+        
+        // Evitar duplicados
+        if (!options.includes(newOption)) {
+            options.push(newOption);
+        }
+    }
+    
+    return shuffleArray(options);
+}
+
+// Función necesaria para mezclar las opciones
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
 
 function displayMathProblem() {
     if (!currentMathProblem) return;
