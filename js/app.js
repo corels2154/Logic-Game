@@ -824,23 +824,39 @@ function initAlgebraGame() {
 }
 
 function startTablePractice(table) {
-    currentLearnTopic = 'multiplicacion';
     const problems = [];
-    
     for (let i = 1; i <= 10; i++) {
+        const answer = table * i;
         problems.push({
             question: `${table} × ${i}`,
-            answer: table * i,
-            options: generateMathOptions(table * i, 4)
+            answer: answer,
+            options: generateMathOptions(answer, 4) // ← Esto es obligatorio
         });
     }
-    
-    startLearningGame(problems, `Practica la tabla del ${table}`);
+    startLearningGame(problems, `Tabla del ${table}`);
+}
+function initFractionGame() {
+    // ... código existente ...
+    problems.push({
+        question: `¿Cuál es mayor? ${frac1.numerator}/${frac1.denominator} o ${frac2.numerator}/${frac2.denominator}?`,
+        answer: frac1.value > frac2.value ? 0 : 1,
+        options: [ // ← Asegúrate de incluir esto
+            `${frac1.numerator}/${frac1.denominator}`,
+            `${frac2.numerator}/${frac2.denominator}`
+        ]
+    });
 }
 
 function startLearningGame(problems, title) {
+    // Validación inicial (añadir al inicio)
     if (!problems || problems.length === 0) {
-        showResultModal('Error', 'No hay problemas disponibles para este tema', 'error');
+        showResultModal('Error', 'No se recibieron problemas', 'error');
+        return;
+    }
+    const validProblems = problems.filter(p => p && p.question && p.options && Array.isArray(p.options));
+
+    if (validProblems.length === 0) {
+        showResultModal('Error', 'Ningún problema válido encontrado', 'error');
         return;
     }
     
@@ -867,21 +883,19 @@ function startLearningGame(problems, title) {
     let learningStreak = 0;
     
     function showNextProblem() {
-        if (currentProblemIndex >= problems.length) {
-            showResultModal(
-                '¡Completado!', 
-                `Obtuviste ${learningScore} puntos en ${problems.length} problemas.`, 
-                'success'
-            );
-            currentScore += learningScore;
-            updateScoreUI();
-            initLearningGames();
+        if (!currentProblem || !currentProblem.options) {
+            console.error("Problema no definido o sin opciones:", currentProblem);
+            currentProblem = {
+                question: "2 × 2",
+                answer: 4,
+                options: [3, 4, 5, 6] // Ejemplo de respuestas
+            };
             return;
         }
         
         const problem = problems[currentProblemIndex];
         const problemDisplay = document.getElementById('current-learning-problem');
-        const optionsDisplay = document.getElementById('learning-options');
+        
         
         if (problemDisplay) {
             problemDisplay.innerHTML = `<p>${problem.question}</p>`;
@@ -893,14 +907,15 @@ function startLearningGame(problems, title) {
             }
         }
         
+        const optionsDisplay = document.getElementById('learning-options');
         if (optionsDisplay) {
             optionsDisplay.innerHTML = '';
-            problem.options.forEach((option, index) => {
-                const optionBtn = document.createElement('button');
-                optionBtn.className = 'learning-option';
-                optionBtn.textContent = option;
-                optionBtn.addEventListener('click', () => checkLearningAnswer(index, problem.answer));
-                optionsDisplay.appendChild(optionBtn);
+            currentProblem.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'learning-option';
+                button.textContent = option;
+                button.addEventListener('click', () => checkLearningAnswer(index));
+                optionsDisplay.appendChild(button);
             });
         }
     }
@@ -1146,6 +1161,12 @@ function showResultModal(title, message, type, buttons = [{ text: 'OK', action: 
     }
     
     modal.style.display = 'flex';
+}
+// Colócalo en tus funciones auxiliares
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 function getAuthErrorMessage(errorCode) {
